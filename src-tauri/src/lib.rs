@@ -1,0 +1,23 @@
+mod commands;
+mod types;
+mod utils;
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![
+            commands::registry::get_unreal_version_selector_path,
+            commands::registry::get_installed_engine_paths,
+            commands::projects::analyse_uproject,
+            commands::process::run_command,
+            commands::process::kill_process,
+            commands::shader::get_shader_worker_status,
+            commands::shader::set_shader_worker_priority,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
