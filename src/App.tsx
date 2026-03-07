@@ -1,4 +1,5 @@
 import { BaseLayout } from './components/BaseLayout';
+import { StatusPanel } from './components/StatusPanel';
 
 function App() {
   return (
@@ -8,6 +9,7 @@ function App() {
         <p className="text-zinc-400">
           Unreal Engine project launcher and toolbox
         </p>
+        <StatusPanel />
       </div>
     </BaseLayout>
   );

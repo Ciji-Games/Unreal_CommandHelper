@@ -10,3 +10,8 @@ export interface ProjectInfo {
   isCpp: boolean;
   maps: string[];
 }
+
+export interface EngineEntry {
+  version: string;
+  editorPath: string;
+}

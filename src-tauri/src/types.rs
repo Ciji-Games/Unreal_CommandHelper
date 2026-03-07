@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ProjectInfo {
     pub project_path: String,
     pub project_name: String,
@@ -13,6 +14,7 @@ pub struct ProjectInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct EngineEntry {
     pub version: String,
     pub editor_path: String,
