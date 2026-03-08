@@ -57,7 +57,7 @@ export function LauncherTab() {
         {loading ? (
           <p className="text-zinc-500 text-sm">Loading engines...</p>
         ) : (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
             {engines.map((e) => (
               <LauncherCard
                 key={e.version}
@@ -75,7 +75,7 @@ export function LauncherTab() {
       {/* Projects */}
       <section>
         <h2 className="text-lg font-semibold text-amber-500 mb-2">Projects</h2>
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
           {projects.map((p) => (
             <LauncherCard
               key={p.projectPath}

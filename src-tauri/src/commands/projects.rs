@@ -67,12 +67,12 @@ pub fn analyse_uproject(path: String) -> Result<ProjectInfo, String> {
     let source_dir = project_dir.join("Source");
     let is_cpp = source_dir.exists();
 
-    // Match engine path from registry
+    // Match engine path from registry (project may have "5.7", engine "5.7.1")
     let engine_install_path = registry::get_installed_engine_paths()
         .ok()
         .unwrap_or_default()
         .into_iter()
-        .find(|e| e.version == engine_version)
+        .find(|e| e.version == engine_version || e.version.starts_with(&engine_version))
         .map(|e| e.editor_path)
         .unwrap_or_else(|| "Unknown".to_string());
 

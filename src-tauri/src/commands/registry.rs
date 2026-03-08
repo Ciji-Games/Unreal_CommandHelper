@@ -1,12 +1,51 @@
 //! Windows registry commands - engine paths, UnrealVersionSelector
 //! Step 5: Implement Windows registry & engine discovery
 
+use std::path::Path;
+
 #[cfg(windows)]
 use winreg::enums::{HKEY_CLASSES_ROOT, HKEY_LOCAL_MACHINE};
 #[cfg(windows)]
 use winreg::RegKey;
 
 use crate::types::EngineEntry;
+
+/// Build.version JSON structure (Engine/Build/Build.version)
+#[derive(serde::Deserialize)]
+struct BuildVersion {
+    #[serde(rename = "MajorVersion")]
+    major_version: Option<u16>,
+    #[serde(rename = "MinorVersion")]
+    minor_version: Option<u16>,
+    #[serde(rename = "PatchVersion")]
+    patch_version: Option<u16>,
+}
+
+/// Read full engine version (e.g. 5.7.1) from Engine/Build/Build.version.
+/// Falls back to short_version if file is missing or unreadable.
+fn read_engine_version_from_build_file(installed_dir: &Path, short_version: &str) -> String {
+    let build_version_path = installed_dir
+        .join("Engine")
+        .join("Build")
+        .join("Build.version");
+    let content = match std::fs::read_to_string(&build_version_path) {
+        Ok(c) => c,
+        Err(_) => return short_version.to_string(),
+    };
+    let build: BuildVersion = match serde_json::from_str(&content) {
+        Ok(b) => b,
+        Err(_) => return short_version.to_string(),
+    };
+    match (
+        build.major_version,
+        build.minor_version,
+        build.patch_version,
+    ) {
+        (Some(maj), Some(min), Some(patch)) => format!("{}.{}.{}", maj, min, patch),
+        (Some(maj), Some(min), None) => format!("{}.{}", maj, min),
+        _ => short_version.to_string(),
+    }
+}
 
 /// Get UnrealVersionSelector.exe path from registry.
 /// Registry: HKCR\Unreal.ProjectFile\shell\rungenproj → value "Icon"
@@ -82,8 +121,12 @@ pub fn get_installed_engine_paths() -> Result<Vec<EngineEntry>, String> {
                             .join("Win64")
                             .join("UnrealEditor.exe");
                         if editor_path.exists() {
+                            let version = read_engine_version_from_build_file(
+                                std::path::Path::new(installed_dir),
+                                &subkey_name,
+                            );
                             engines.push(EngineEntry {
-                                version: subkey_name.clone(),
+                                version,
                                 editor_path: editor_path.to_string_lossy().to_string(),
                             });
                         }
