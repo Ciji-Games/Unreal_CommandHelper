@@ -6,8 +6,6 @@ use std::process::Command;
 use std::os::windows::process::CommandExt;
 
 /// Strip ANSI escape codes from a string (for log output)
-/// Used by run_command_with_log in later steps
-#[allow(dead_code)]
 pub fn strip_ansi(s: &str) -> String {
     let ansi_escape = regex::Regex::new(r"\x1b\[[0-9;]*m").unwrap();
     ansi_escape.replace_all(s, "").to_string()

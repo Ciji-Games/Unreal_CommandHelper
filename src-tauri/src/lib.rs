@@ -17,6 +17,7 @@ pub fn run() {
             commands::process::open_file,
             commands::process::run_command,
             commands::process::kill_process,
+            commands::regenerate::regenerate_project,
             commands::shader::get_shader_worker_status,
             commands::shader::set_shader_worker_priority,
         ])
