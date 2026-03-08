@@ -13,6 +13,8 @@ pub fn run() {
             commands::registry::get_unreal_version_selector_path,
             commands::registry::get_installed_engine_paths,
             commands::projects::analyse_uproject,
+            commands::projects::get_project_thumbnail_path,
+            commands::process::open_file,
             commands::process::run_command,
             commands::process::kill_process,
             commands::shader::get_shader_worker_status,
