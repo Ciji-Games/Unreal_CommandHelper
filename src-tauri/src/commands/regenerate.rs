@@ -27,7 +27,7 @@ fn emit_log(app: &AppHandle, line: &str, explicit_color: Option<&str>) {
         let lower = line.to_lowercase();
         if lower.contains("success") || lower.contains("completed") {
             Some("green".to_string())
-        } else if lower.contains("error") {
+        } else if lower.contains("error") && !lower.contains("warningsaserrors") {
             Some("red".to_string())
         } else if lower.contains("warning") {
             Some("orange".to_string())

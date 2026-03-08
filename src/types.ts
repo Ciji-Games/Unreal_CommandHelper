@@ -15,3 +15,11 @@ export interface EngineEntry {
   version: string;
   editorPath: string;
 }
+
+/** Process monitoring - status for a single monitored application */
+export interface ProcessStatus {
+  id: string;
+  displayName: string;
+  isRunning: boolean;
+  pids: number[];
+}

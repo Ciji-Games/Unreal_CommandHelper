@@ -24,4 +24,5 @@ regex = "1"
 tokio = { version = "1", features = ["rt", "rt-multi-thread"] }
 winreg = "0.52"
 walkdir = "2"
+sysinfo = "0.38"
 # windows = "0.58"  # Step 12: Process priority (features = ["Win32_System_Threading", "Win32_System_Diagnostics_ToolHelp"])

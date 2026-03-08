@@ -9,11 +9,16 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../hooks/useProjects';
 import { useSettings } from '../hooks/useSettings';
 import { useLog } from '../contexts/LogContext';
+import { useProcessMonitor } from '../hooks/useProcessMonitor';
+
+const REGENERATE_PROCESS_GROUP = 'regenerate';
 
 export function RegenerateProjectPanel() {
   const { projects, addProject } = useProjects();
   const { settings } = useSettings();
   const { clearLog } = useLog();
+  const { runningProcesses: blockingProcesses, hasBlockingProcesses } =
+    useProcessMonitor(REGENERATE_PROCESS_GROUP);
   const [selectedPath, setSelectedPath] = useState<string>('');
   const [versionSelectorPath, setVersionSelectorPath] = useState<string | null>(null);
   const [buildAfter, setBuildAfter] = useState(false);
@@ -78,6 +83,13 @@ export function RegenerateProjectPanel() {
       alert('UnrealVersionSelector.exe not found. Please set the path in settings.');
       return;
     }
+    if (hasBlockingProcesses) {
+      const names = blockingProcesses.map((p) => p.displayName).join(', ');
+      const proceed = window.confirm(
+        `The following programs are running and may prevent proper project generation:\n\n${names}\n\nClose them before regenerating for best results. Continue anyway?`
+      );
+      if (!proceed) return;
+    }
 
     const selectedProject = projects.find((p) => p.projectPath === selectedPath);
     const enginePath = selectedProject?.engineInstallPath ?? '';
@@ -137,6 +149,16 @@ export function RegenerateProjectPanel() {
             </p>
           )}
         </div>
+
+        {hasBlockingProcesses && (
+          <div className="rounded-lg border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+            <p className="font-medium">Warning: The following programs are running</p>
+            <p className="mt-1 text-amber-200/90">
+              {blockingProcesses.map((p) => p.displayName).join(', ')} — close them before
+              regenerating for proper project generation.
+            </p>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-2 text-zinc-300 text-sm cursor-pointer">
