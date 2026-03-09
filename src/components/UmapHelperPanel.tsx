@@ -7,10 +7,10 @@ const LIGHTING_QUALITIES = ['Preview', 'Medium', 'High', 'Production', 'MAX'] as
 
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../hooks/useProjects';
 import { useLog } from '../contexts/LogContext';
+import { useProgress } from '../contexts/ProgressContext';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
 import { ToolGroup } from './ToolGroup';
 import type { ProjectInfo } from '../types';
@@ -20,6 +20,7 @@ const UMAP_PROCESS_GROUP = 'umap';
 export function UmapHelperPanel() {
   const { projects, addProject } = useProjects();
   const { clearLog } = useLog();
+  const { startProgress, finishProgress } = useProgress();
   const { runningProcesses: blockingProcesses, hasBlockingProcesses } =
     useProcessMonitor(UMAP_PROCESS_GROUP);
   const [selectedProjectPath, setSelectedProjectPath] = useState<string>('');
@@ -27,20 +28,9 @@ export function UmapHelperPanel() {
   const [launchMapAfter, setLaunchMapAfter] = useState(false);
   const [lightingQuality, setLightingQuality] = useState<string>('Production');
   const [running, setRunning] = useState(false);
-  const [progress, setProgress] = useState<number>(0);
 
   const selectedProject = projects.find((p) => p.projectPath === selectedProjectPath);
   const maps = selectedProject?.maps ?? [];
-
-  // Listen for progress-update events from Rust
-  useEffect(() => {
-    const unlisten = listen<{ percent: number }>('progress-update', (event) => {
-      setProgress(event.payload.percent);
-    });
-    return () => {
-      unlisten.then((fn) => fn());
-    };
-  }, []);
 
   // When project changes, reset map selection
   useEffect(() => {
@@ -95,7 +85,7 @@ export function UmapHelperPanel() {
 
     clearLog();
     setRunning(true);
-    setProgress(0);
+    startProgress();
     try {
       await invoke('run_map_command', {
         projectPath: selectedProject.projectPath,
@@ -111,7 +101,7 @@ export function UmapHelperPanel() {
       alert(`${completionLabel} failed: ${msg}`);
     } finally {
       setRunning(false);
-      setProgress(100);
+      finishProgress();
     }
   };
 
@@ -135,7 +125,7 @@ export function UmapHelperPanel() {
 
     clearLog();
     setRunning(true);
-    setProgress(0);
+    startProgress();
     try {
       await invoke('run_build_lighting', {
         projectPath: selectedProject.projectPath,
@@ -149,7 +139,7 @@ export function UmapHelperPanel() {
       alert(`Build Static Lighting failed: ${msg}`);
     } finally {
       setRunning(false);
-      setProgress(100);
+      finishProgress();
     }
   };
 
@@ -211,17 +201,6 @@ export function UmapHelperPanel() {
               {blockingProcesses.map((p) => p.displayName).join(', ')} — close it before running
               HLOD, MiniMap, or static lighting commands.
             </p>
-          </div>
-        )}
-
-        {running && (
-          <div className="space-y-1">
-            <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
-              <div
-                className="h-full bg-amber-500 transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
           </div>
         )}
 

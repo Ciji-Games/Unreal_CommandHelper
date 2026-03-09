@@ -1,41 +1,14 @@
 //! UProject Helper - Cook, Package (BuildCookRun), Build (Compile only).
 //! Step 13: Cook Content, Package, Build commands.
 
-use std::io::BufRead;
 use std::path::Path;
 
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 
 use crate::commands::monitor;
-use crate::utils::{build_cmd, strip_ansi};
-
-/// Log line color - matches regenerate.rs
-#[derive(Clone, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct LogEvent {
-    line: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    color: Option<String>,
-}
-
-fn emit_log(app: &AppHandle, line: &str, explicit_color: Option<&str>) {
-    let color = explicit_color.map(String::from).or_else(|| {
-        let lower = line.to_lowercase();
-        if lower.contains("success") || lower.contains("completed") {
-            Some("green".to_string())
-        } else if lower.contains("error") && !lower.contains("warningsaserrors") {
-            Some("red".to_string())
-        } else if lower.contains("warning") {
-            Some("orange".to_string())
-        } else {
-            None
-        }
-    });
-    let _ = app.emit("log-output", LogEvent {
-        line: strip_ansi(line),
-        color,
-    });
-}
+use crate::progress_parser::ToolMode;
+use crate::stream_processor::{self, process_streams};
+use crate::utils::build_cmd;
 
 /// Resolve engine root from UnrealEditor.exe path.
 /// UnrealEditor.exe is at Engine/Binaries/Win64/UnrealEditor.exe
@@ -78,7 +51,7 @@ pub async fn run_cook(
 
     let editor_exe = Path::new(&engine_path);
     if !editor_exe.exists() {
-        emit_log(&app, "[ERROR] UnrealEditor.exe not found.", Some("red"));
+        stream_processor::emit_log(&app, "[ERROR] UnrealEditor.exe not found.", Some("red"));
         return Err("Engine path not found".to_string());
     }
 
@@ -103,8 +76,8 @@ pub async fn run_cook(
         "-log".to_string(),
     ];
 
-    emit_log(&app, &format!("Running Cook for platform: {} (target: {})", platform, cook_platform), Some("blue"));
-    emit_log(&app, &format!("Command: {} {}", editor_cmd, args.join(" ")), None);
+    stream_processor::emit_log(&app, &format!("Running Cook for platform: {} (target: {})", platform, cook_platform), Some("blue"));
+    stream_processor::emit_log(&app, &format!("Command: {} {}", editor_cmd, args.join(" ")), None);
 
     let result = tokio::task::spawn_blocking({
         let app = app.clone();
@@ -119,32 +92,16 @@ pub async fn run_cook(
             let mut child = cmd.spawn().map_err(|e| e.to_string())?;
             let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
             let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
-            let app_stdout = app.clone();
-            let app_stderr = app.clone();
-
-            std::thread::spawn(move || {
-                let reader = std::io::BufReader::new(stdout);
-                for line in reader.lines().filter_map(Result::ok) {
-                    if !line.is_empty() {
-                        emit_log(&app_stdout, &line, None);
-                    }
-                }
-            });
-            std::thread::spawn(move || {
-                let reader = std::io::BufReader::new(stderr);
-                for line in reader.lines().filter_map(Result::ok) {
-                    if !line.is_empty() {
-                        emit_log(&app_stderr, &line, Some("red"));
-                    }
-                }
-            });
+            let stdout_reader = std::io::BufReader::new(stdout);
+            let stderr_reader = std::io::BufReader::new(stderr);
+            process_streams(stdout_reader, stderr_reader, app.clone(), ToolMode::Cook);
 
             let status = child.wait().map_err(|e| e.to_string())?;
             if status.success() {
-                emit_log(&app, "Cook completed successfully!", Some("green"));
+                stream_processor::emit_log(&app, "Cook completed successfully!", Some("green"));
                 Ok(())
             } else {
-                emit_log(
+                stream_processor::emit_log(
                     &app,
                     &format!("Cook exited with code: {:?}", status.code()),
                     Some("red"),
@@ -210,7 +167,7 @@ pub async fn run_package(
         format!("-archivedirectory=\"{}\"", archive_directory),
     ];
 
-    emit_log(
+    stream_processor::emit_log(
         &app,
         &format!(
             "Running Package (BuildCookRun) for platform: {}, config: {}",
@@ -218,7 +175,7 @@ pub async fn run_package(
         ),
         Some("blue"),
     );
-    emit_log(
+    stream_processor::emit_log(
         &app,
         &format!("Archive directory: {}", archive_directory),
         None,
@@ -238,32 +195,16 @@ pub async fn run_package(
             let mut child = cmd.spawn().map_err(|e| e.to_string())?;
             let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
             let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
-            let app_stdout = app.clone();
-            let app_stderr = app.clone();
-
-            std::thread::spawn(move || {
-                let reader = std::io::BufReader::new(stdout);
-                for line in reader.lines().filter_map(Result::ok) {
-                    if !line.is_empty() {
-                        emit_log(&app_stdout, &line, None);
-                    }
-                }
-            });
-            std::thread::spawn(move || {
-                let reader = std::io::BufReader::new(stderr);
-                for line in reader.lines().filter_map(Result::ok) {
-                    if !line.is_empty() {
-                        emit_log(&app_stderr, &line, Some("red"));
-                    }
-                }
-            });
+            let stdout_reader = std::io::BufReader::new(stdout);
+            let stderr_reader = std::io::BufReader::new(stderr);
+            process_streams(stdout_reader, stderr_reader, app.clone(), ToolMode::Package);
 
             let status = child.wait().map_err(|e| e.to_string())?;
             if status.success() {
-                emit_log(&app, "Package completed successfully!", Some("green"));
+                stream_processor::emit_log(&app, "Package completed successfully!", Some("green"));
                 Ok(())
             } else {
-                emit_log(
+                stream_processor::emit_log(
                     &app,
                     &format!("Package exited with code: {:?}", status.code()),
                     Some("red"),
@@ -337,8 +278,8 @@ pub async fn run_build(
         "-WaitMutex".to_string(),
     ];
 
-    emit_log(&app, "Building project (Development Editor)...", Some("blue"));
-    emit_log(&app, &format!("Target: {}Editor", project_name), None);
+    stream_processor::emit_log(&app, "Building project (Development Editor)...", Some("blue"));
+    stream_processor::emit_log(&app, &format!("Target: {}Editor", project_name), None);
 
     let result = tokio::task::spawn_blocking({
         let app = app.clone();
@@ -352,32 +293,16 @@ pub async fn run_build(
             let mut child = cmd.spawn().map_err(|e| e.to_string())?;
             let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
             let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
-            let app_stdout = app.clone();
-            let app_stderr = app.clone();
-
-            std::thread::spawn(move || {
-                let reader = std::io::BufReader::new(stdout);
-                for line in reader.lines().filter_map(Result::ok) {
-                    if !line.is_empty() {
-                        emit_log(&app_stdout, &line, None);
-                    }
-                }
-            });
-            std::thread::spawn(move || {
-                let reader = std::io::BufReader::new(stderr);
-                for line in reader.lines().filter_map(Result::ok) {
-                    if !line.is_empty() {
-                        emit_log(&app_stderr, &line, Some("red"));
-                    }
-                }
-            });
+            let stdout_reader = std::io::BufReader::new(stdout);
+            let stderr_reader = std::io::BufReader::new(stderr);
+            process_streams(stdout_reader, stderr_reader, app.clone(), ToolMode::Build);
 
             let status = child.wait().map_err(|e| e.to_string())?;
             if status.success() {
-                emit_log(&app, "Build completed successfully!", Some("green"));
+                stream_processor::emit_log(&app, "Build completed successfully!", Some("green"));
                 Ok(())
             } else {
-                emit_log(
+                stream_processor::emit_log(
                     &app,
                     &format!("Build exited with code: {:?}", status.code()),
                     Some("red"),

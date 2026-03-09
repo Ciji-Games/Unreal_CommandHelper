@@ -2,15 +2,16 @@
 //! Step 13: List projects with Plugins folder, list plugins, build with selected engine, optional zip.
 
 use std::fs;
-use std::io::BufRead;
 use std::path::Path;
 
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use walkdir::WalkDir;
 
 use crate::commands::monitor;
 use crate::commands::registry;
-use crate::utils::{build_cmd, strip_ansi};
+use crate::progress_parser::ToolMode;
+use crate::stream_processor::{self, process_streams};
+use crate::utils::build_cmd;
 
 /// Plugin info - a .uplugin file found in a project's Plugins folder
 #[derive(Debug, Clone, serde::Serialize)]
@@ -19,34 +20,6 @@ pub struct PluginInfo {
     pub name: String,
     pub uplugin_path: String,
     pub folder_path: String,
-}
-
-/// Log line - matches regenerate.rs
-#[derive(Clone, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct LogEvent {
-    line: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    color: Option<String>,
-}
-
-fn emit_log(app: &AppHandle, line: &str, explicit_color: Option<&str>) {
-    let color = explicit_color.map(String::from).or_else(|| {
-        let lower = line.to_lowercase();
-        if lower.contains("success") || lower.contains("completed") {
-            Some("green".to_string())
-        } else if lower.contains("error") && !lower.contains("warningsaserrors") {
-            Some("red".to_string())
-        } else if lower.contains("warning") {
-            Some("orange".to_string())
-        } else {
-            None
-        }
-    });
-    let _ = app.emit("log-output", LogEvent {
-        line: strip_ansi(line),
-        color,
-    });
 }
 
 /// List plugins for a project. Returns plugins found in project_dir/Plugins/.
@@ -168,8 +141,8 @@ pub async fn build_plugin(
         .ok_or("Invalid BatchFiles path")?
         .to_string();
 
-    emit_log(&app, &format!("Building plugin: {} for engine {}", plugin_name, engine_version), Some("blue"));
-    emit_log(
+    stream_processor::emit_log(&app, &format!("Building plugin: {} for engine {}", plugin_name, engine_version), Some("blue"));
+    stream_processor::emit_log(
         &app,
         &format!("Plugin: {} -> Package: {}", uplugin_path, package_dir.display()),
         None,
@@ -200,25 +173,9 @@ pub async fn build_plugin(
             let mut child = cmd.spawn().map_err(|e| e.to_string())?;
             let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
             let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
-            let app_stdout = app.clone();
-            let app_stderr = app.clone();
-
-            std::thread::spawn(move || {
-                let reader = std::io::BufReader::new(stdout);
-                for line in reader.lines().filter_map(Result::ok) {
-                    if !line.is_empty() {
-                        emit_log(&app_stdout, &line, None);
-                    }
-                }
-            });
-            std::thread::spawn(move || {
-                let reader = std::io::BufReader::new(stderr);
-                for line in reader.lines().filter_map(Result::ok) {
-                    if !line.is_empty() {
-                        emit_log(&app_stderr, &line, Some("red"));
-                    }
-                }
-            });
+            let stdout_reader = std::io::BufReader::new(stdout);
+            let stderr_reader = std::io::BufReader::new(stderr);
+            process_streams(stdout_reader, stderr_reader, app.clone(), ToolMode::Build);
 
             child.wait().map_err(|e| e.to_string())?;
 
@@ -242,7 +199,7 @@ pub async fn build_plugin(
                 // Output zip in Plugins folder (parent of plugin folder), not inside the plugin folder
                 let plugins_folder = plugin_folder.parent().unwrap_or(&plugin_folder);
                 let zip_path = plugins_folder.join(&zip_name);
-                emit_log(&app, &format!("Zipping: {}", zip_name), Some("blue"));
+                stream_processor::emit_log(&app, &format!("Zipping: {}", zip_name), Some("blue"));
 
                 let file = fs::File::create(&zip_path).map_err(|e| format!("Failed to create zip: {}", e))?;
                 let mut zip_writer = zip::ZipWriter::new(file);
@@ -268,9 +225,9 @@ pub async fn build_plugin(
                 zip_writer.finish().map_err(|e| e.to_string())?;
 
                 result_path = zip_path.to_string_lossy().to_string();
-                emit_log(&app, &format!("Zipped successfully: {}", result_path), Some("green"));
+                stream_processor::emit_log(&app, &format!("Zipped successfully: {}", result_path), Some("green"));
             } else {
-                emit_log(&app, "Build completed successfully.", Some("green"));
+                stream_processor::emit_log(&app, "Build completed successfully.", Some("green"));
             }
 
             Ok(result_path)

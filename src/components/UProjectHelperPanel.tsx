@@ -8,6 +8,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../hooks/useProjects';
 import { useLog } from '../contexts/LogContext';
+import { useProgress } from '../contexts/ProgressContext';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
 import { ToolGroup } from './ToolGroup';
 import type { ProjectInfo } from '../types';
@@ -19,6 +20,7 @@ const PACKAGE_CONFIGS = ['Development', 'Shipping'];
 export function UProjectHelperPanel() {
   const { projects, addProject } = useProjects();
   const { clearLog } = useLog();
+  const { startProgress, finishProgress } = useProgress();
   const { runningProcesses: blockingProcesses, hasBlockingProcesses } =
     useProcessMonitor(UPROJECT_PROCESS_GROUP);
   const [selectedProjectPath, setSelectedProjectPath] = useState<string>('');
@@ -85,6 +87,7 @@ export function UProjectHelperPanel() {
     }
     clearLog();
     setRunning(true);
+    startProgress();
     try {
       await invoke('run_cook', {
         projectPath: selectedProject.projectPath,
@@ -97,6 +100,7 @@ export function UProjectHelperPanel() {
       alert(`Cook failed: ${msg}`);
     } finally {
       setRunning(false);
+      finishProgress();
     }
   };
 
@@ -113,6 +117,7 @@ export function UProjectHelperPanel() {
     }
     clearLog();
     setRunning(true);
+    startProgress();
     try {
       await invoke('run_package', {
         projectPath: selectedProject.projectPath,
@@ -127,6 +132,7 @@ export function UProjectHelperPanel() {
       alert(`Package failed: ${msg}`);
     } finally {
       setRunning(false);
+      finishProgress();
     }
   };
 
@@ -143,6 +149,7 @@ export function UProjectHelperPanel() {
     }
     clearLog();
     setRunning(true);
+    startProgress();
     try {
       await invoke('run_build', {
         projectPath: selectedProject.projectPath,
@@ -155,6 +162,7 @@ export function UProjectHelperPanel() {
       alert(`Build failed: ${msg}`);
     } finally {
       setRunning(false);
+      finishProgress();
     }
   };
 

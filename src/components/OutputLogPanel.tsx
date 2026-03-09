@@ -1,6 +1,6 @@
 /**
  * Output Log panel - scrollable monospace log with colored lines.
- * Step 9: Mirrors outputTextBox from Form1.cs, coloring from CustomGroup.cs
+ * Progress bar below the log with animated fill and elapsed time.
  *
  * Old launcher coloring:
  * - Green: Success, Completed
@@ -13,6 +13,7 @@
 import { useEffect, useRef } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { useLog } from '../contexts/LogContext';
+import { useProgress } from '../contexts/ProgressContext';
 
 export interface LogEvent {
   line: string;
@@ -28,8 +29,20 @@ const colorClasses: Record<string, string> = {
   gray: 'text-zinc-500',
 };
 
+function formatElapsed(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
 export function OutputLogPanel() {
   const { lines, appendLine, clearLog } = useLog();
+  const { running, percent, elapsedMs } = useProgress();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -79,6 +92,21 @@ export function OutputLogPanel() {
           ))
         )}
       </div>
+      {running && (
+        <div className="flex items-center gap-3 shrink-0 -mt-0.5">
+          <div className="flex-1 h-3.5 rounded-full bg-zinc-800 overflow-hidden">
+            <div
+              className="h-full bg-amber-500 transition-all duration-300 relative overflow-hidden progress-bar-fill"
+              style={{
+                width: `${percent}%`,
+              }}
+            />
+          </div>
+          <span className="text-sm text-zinc-400 tabular-nums min-w-[3rem]">
+            {formatElapsed(elapsedMs)}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

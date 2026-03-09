@@ -10,6 +10,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../hooks/useProjects';
 import { useSettings } from '../hooks/useSettings';
 import { useLog } from '../contexts/LogContext';
+import { useProgress } from '../contexts/ProgressContext';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
 
 const REGENERATE_PROCESS_GROUP = 'regenerate';
@@ -18,6 +19,7 @@ export function RegenerateProjectPanel() {
   const { projects, addProject } = useProjects();
   const { settings } = useSettings();
   const { clearLog } = useLog();
+  const { startProgress, finishProgress } = useProgress();
   const { runningProcesses: blockingProcesses, hasBlockingProcesses } =
     useProcessMonitor(REGENERATE_PROCESS_GROUP);
   const [selectedPath, setSelectedPath] = useState<string>('');
@@ -89,6 +91,7 @@ export function RegenerateProjectPanel() {
 
     clearLog();
     setRunning(true);
+    startProgress();
     try {
       await invoke('regenerate_project', {
         uprojectPath: selectedPath,
@@ -104,6 +107,7 @@ export function RegenerateProjectPanel() {
       alert(`Regenerate failed: ${msg}`);
     } finally {
       setRunning(false);
+      finishProgress();
     }
   };
 

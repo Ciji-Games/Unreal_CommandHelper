@@ -2,45 +2,14 @@
 //! Step 8: Mirrors RegenerateProject.cs metroSetButton1_Click
 
 use std::path::Path;
+use std::time::Instant;
 
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 
 use crate::commands::monitor;
-use crate::utils::{build_cmd, strip_ansi};
-
-/// Log line color - matches old launcher (CustomGroup.cs, Form1.AppendLog)
-#[derive(Clone, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LogEvent {
-    pub line: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub color: Option<String>,
-}
-
-/// Emit a log line to the frontend. Color matches old launcher:
-/// - Green: Success, Completed
-/// - Red: Error (also stderr)
-/// - Orange: Warning
-/// - Blue: Info (explicit)
-/// - White: Default
-fn emit_log(app: &AppHandle, line: &str, explicit_color: Option<&str>) {
-    let color = explicit_color.map(String::from).or_else(|| {
-        let lower = line.to_lowercase();
-        if lower.contains("success") || lower.contains("completed") {
-            Some("green".to_string())
-        } else if lower.contains("error") && !lower.contains("warningsaserrors") {
-            Some("red".to_string())
-        } else if lower.contains("warning") {
-            Some("orange".to_string())
-        } else {
-            None // white/default
-        }
-    });
-    let _ = app.emit("log-output", LogEvent {
-        line: strip_ansi(line),
-        color,
-    });
-}
+use crate::progress_parser::ToolMode;
+use crate::stream_processor::{self, process_streams};
+use crate::utils::build_cmd;
 
 /// Regenerate project files: delete Intermediate, DerivedDataCache, Build, .vs, Binaries,
 /// .sln, .vsconfig; then run UnrealVersionSelector -projectfiles.
@@ -74,7 +43,7 @@ pub async fn regenerate_project(
         .to_string();
 
     if !Path::new(&version_selector_path).exists() {
-        emit_log(&app, "[ERROR] UnrealVersionSelector.exe not found.", Some("red"));
+        stream_processor::emit_log(&app, "[ERROR] UnrealVersionSelector.exe not found.", Some("red"));
         return Err("UnrealVersionSelector.exe not found".to_string());
     }
 
@@ -97,8 +66,8 @@ pub async fn regenerate_project(
                 let folder_path = project_dir.join(folder);
                 if folder_path.exists() {
                     match std::fs::remove_dir_all(&folder_path) {
-                        Ok(()) => emit_log(&app, &format!("Deleted folder: {}", folder), Some("blue")),
-                        Err(e) => emit_log(
+                        Ok(()) => stream_processor::emit_log(&app, &format!("Deleted folder: {}", folder), Some("blue")),
+                        Err(e) => stream_processor::emit_log(
                             &app,
                             &format!("[ERROR] Could not delete {}: {}", folder, e),
                             Some("red"),
@@ -116,12 +85,12 @@ pub async fn regenerate_project(
             ] {
                 if path.exists() {
                     match std::fs::remove_file(&path) {
-                        Ok(()) => emit_log(
+                        Ok(()) => stream_processor::emit_log(
                             &app,
                             &format!("Deleted file: {}", path.file_name().unwrap_or_default().to_string_lossy()),
                             Some("blue"),
                         ),
-                        Err(e) => emit_log(
+                        Err(e) => stream_processor::emit_log(
                             &app,
                             &format!("[ERROR] Could not delete {}: {}", label, e),
                             Some("red"),
@@ -130,10 +99,12 @@ pub async fn regenerate_project(
                 }
             }
 
-            emit_log(&app, "Cleaning completed.", Some("blue"));
+            stream_processor::emit_log(&app, "Cleaning completed.", Some("blue"));
+            let start = Instant::now();
+            stream_processor::emit_progress(&app, 10, start.elapsed().as_millis() as u64);
 
             // 3. Run UnrealVersionSelector -projectfiles
-            emit_log(&app, "Generating project files...", Some("blue"));
+            stream_processor::emit_log(&app, "Generating project files...", Some("blue"));
             let args = vec!["-projectfiles".to_string(), uproject_path.clone()];
             let cwd = project_dir.to_str().filter(|s| !s.is_empty());
             let mut cmd = build_cmd(&version_selector_path, &args, cwd);
@@ -143,27 +114,9 @@ pub async fn regenerate_project(
             let mut child = cmd.spawn().map_err(|e| e.to_string())?;
             let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
             let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
-            let app_stdout = app.clone();
-            let app_stderr = app.clone();
-
-            std::thread::spawn(move || {
-                use std::io::BufRead;
-                let reader = std::io::BufReader::new(stdout);
-                for line in reader.lines().filter_map(Result::ok) {
-                    if !line.is_empty() {
-                        emit_log(&app_stdout, &line, None);
-                    }
-                }
-            });
-            std::thread::spawn(move || {
-                use std::io::BufRead;
-                let reader = std::io::BufReader::new(stderr);
-                for line in reader.lines().filter_map(Result::ok) {
-                    if !line.is_empty() {
-                        emit_log(&app_stderr, &line, Some("red"));
-                    }
-                }
-            });
+            let stdout_reader = std::io::BufReader::new(stdout);
+            let stderr_reader = std::io::BufReader::new(stderr);
+            process_streams(stdout_reader, stderr_reader, app.clone(), ToolMode::Regenerate);
 
             child.wait().map_err(|e| e.to_string())?;
             Ok(())
@@ -174,7 +127,7 @@ pub async fn regenerate_project(
 
     result?;
 
-    emit_log(&app, "Project files generated!", Some("green"));
+    stream_processor::emit_log(&app, "Project files generated!", Some("green"));
 
     // 4. Optional: build project (Development Editor) so VS and UE recognize it as compiled
     if build_after && !engine_install_path.is_empty() {
@@ -200,8 +153,8 @@ pub async fn regenerate_project(
                         let build_bat = build_bat.to_path_buf();
                         let target = target.clone();
                         move || -> Result<(), String> {
-                            emit_log(&app, "Building project (Development Editor)...", Some("blue"));
-                            // Run Build.bat from its directory to avoid path-with-spaces issues
+                            stream_processor::emit_log(&app, "Building project (Development Editor)...", Some("blue"));
+                            stream_processor::emit_progress(&app, 25, 0);
                             let batch_dir = build_bat.parent().ok_or("Invalid Build.bat path")?;
                             let cwd = batch_dir.to_str().ok_or("Invalid BatchFiles path")?;
                             let args = vec![
@@ -221,34 +174,16 @@ pub async fn regenerate_project(
                             let mut child = cmd.spawn().map_err(|e| e.to_string())?;
                             let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
                             let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
-                            let app_stdout = app.clone();
-                            let app_stderr = app.clone();
-
-                            std::thread::spawn(move || {
-                                use std::io::BufRead;
-                                let reader = std::io::BufReader::new(stdout);
-                                for line in reader.lines().filter_map(Result::ok) {
-                                    if !line.is_empty() {
-                                        emit_log(&app_stdout, &line, None);
-                                    }
-                                }
-                            });
-                            std::thread::spawn(move || {
-                                use std::io::BufRead;
-                                let reader = std::io::BufReader::new(stderr);
-                                for line in reader.lines().filter_map(Result::ok) {
-                                    if !line.is_empty() {
-                                        emit_log(&app_stderr, &line, Some("red"));
-                                    }
-                                }
-                            });
+                            let stdout_reader = std::io::BufReader::new(stdout);
+                            let stderr_reader = std::io::BufReader::new(stderr);
+                            process_streams(stdout_reader, stderr_reader, app.clone(), ToolMode::Build);
 
                             let status = child.wait().map_err(|e| e.to_string())?;
                             if status.success() {
-                                emit_log(&app, "Build completed successfully!", Some("green"));
+                                stream_processor::emit_log(&app, "Build completed successfully!", Some("green"));
                                 Ok(())
                             } else {
-                                emit_log(
+                                stream_processor::emit_log(
                                     &app,
                                     &format!("Build exited with code: {:?}", status.code()),
                                     Some("red"),
@@ -264,21 +199,21 @@ pub async fn regenerate_project(
                         return Err(e);
                     }
                 } else {
-                    emit_log(
+                    stream_processor::emit_log(
                         &app,
                         "[WARNING] Build.bat not found. Skipping build.",
                         Some("orange"),
                     );
                 }
             } else {
-                emit_log(
+                stream_processor::emit_log(
                     &app,
                     "[WARNING] Could not resolve engine root. Skipping build.",
                     Some("orange"),
                 );
             }
         } else {
-            emit_log(
+            stream_processor::emit_log(
                 &app,
                 "[WARNING] Engine path not found. Skipping build.",
                 Some("orange"),
@@ -286,18 +221,17 @@ pub async fn regenerate_project(
         }
     }
 
-    // 5. Optional: open project or .sln after
     if open_project_after {
-        emit_log(&app, "Opening project...", Some("blue"));
+        stream_processor::emit_log(&app, "Opening project...", Some("blue"));
         let _ = crate::commands::process::open_file(uproject_path.clone());
     }
     if open_sln_after {
         let sln_path = project_dir.join(format!("{}.sln", project_name.as_str()));
         if sln_path.exists() {
-            emit_log(&app, "Opening solution...", Some("blue"));
+            stream_processor::emit_log(&app, "Opening solution...", Some("blue"));
             let _ = crate::commands::process::open_file(sln_path.to_string_lossy().to_string());
         } else {
-            emit_log(&app, "[ERROR] .sln file not found after generation.", Some("red"));
+            stream_processor::emit_log(&app, "[ERROR] .sln file not found after generation.", Some("red"));
         }
     }
 

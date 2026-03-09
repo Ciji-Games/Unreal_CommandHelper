@@ -1,4 +1,6 @@
 mod commands;
+mod progress_parser;
+mod stream_processor;
 mod types;
 mod utils;
 

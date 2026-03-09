@@ -8,6 +8,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../hooks/useProjects';
 import { useLog } from '../contexts/LogContext';
+import { useProgress } from '../contexts/ProgressContext';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
 import { ToolGroup } from './ToolGroup';
 import type { ProjectInfo } from '../types';
@@ -24,6 +25,7 @@ export interface PluginInfo {
 export function PluginHelperPanel() {
   const { projects, addProject } = useProjects();
   const { clearLog } = useLog();
+  const { startProgress, finishProgress } = useProgress();
   const { runningProcesses: blockingProcesses, hasBlockingProcesses } =
     useProcessMonitor(PLUGIN_PROCESS_GROUP);
   const [selectedProjectPath, setSelectedProjectPath] = useState<string>('');
@@ -134,6 +136,7 @@ export function PluginHelperPanel() {
 
     clearLog();
     setRunning(true);
+    startProgress();
     try {
       const result = await invoke<string>('build_plugin', {
         upluginPath: selectedPlugin.upluginPath,
@@ -147,6 +150,7 @@ export function PluginHelperPanel() {
       alert(`Build failed: ${msg}`);
     } finally {
       setRunning(false);
+      finishProgress();
     }
   };
 

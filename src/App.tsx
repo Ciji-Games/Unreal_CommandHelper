@@ -4,12 +4,14 @@ import { LauncherTab } from './components/LauncherTab';
 import { ToolBoxTab } from './components/ToolBoxTab';
 import { ShaderBoosterBackground } from './components/ShaderBoosterBackground';
 import { LogProvider } from './contexts/LogContext';
+import { ProgressProvider } from './contexts/ProgressContext';
 
 function App() {
   const [activeTab, setActiveTab] = useState<'launcher' | 'toolbox'>('launcher');
 
   return (
     <LogProvider>
+      <ProgressProvider>
       <ShaderBoosterBackground />
       <BaseLayout>
         <div className="flex flex-col gap-6 min-h-0 flex-1">
@@ -47,6 +49,7 @@ function App() {
           )}
         </div>
       </BaseLayout>
+      </ProgressProvider>
     </LogProvider>
   );
 }

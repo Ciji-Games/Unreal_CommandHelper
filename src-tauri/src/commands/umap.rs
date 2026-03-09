@@ -2,50 +2,16 @@
 //! and ResavePackages for Build Static Lighting.
 //! Step 11: Mirrors UmapHelper.cs RunMapCommand
 
-use std::io::BufRead;
 use std::path::Path;
 
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 
 use crate::commands::monitor;
-use crate::utils::{build_cmd, strip_ansi};
+use crate::progress_parser::ToolMode;
+use crate::stream_processor::{self, process_streams};
+use crate::utils::build_cmd;
 #[cfg(windows)]
 use crate::utils::spawn_minimized;
-
-/// Log line color - matches regenerate.rs
-#[derive(Clone, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct LogEvent {
-    line: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    color: Option<String>,
-}
-
-fn emit_log(app: &AppHandle, line: &str, explicit_color: Option<&str>) {
-    let color = explicit_color.map(String::from).or_else(|| {
-        let lower = line.to_lowercase();
-        if lower.contains("success") || lower.contains("completed") {
-            Some("green".to_string())
-        } else if lower.contains("error") && !lower.contains("warningsaserrors") {
-            Some("red".to_string())
-        } else if lower.contains("warning") {
-            Some("orange".to_string())
-        } else {
-            None
-        }
-    });
-    let _ = app.emit("log-output", LogEvent {
-        line: strip_ansi(line),
-        color,
-    });
-}
-
-/// Progress update event for frontend
-#[derive(Clone, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ProgressEvent {
-    pub percent: u32,
-}
 
 /// Run WorldPartitionBuilderCommandlet for the selected project/map.
 /// Working directory: parent of engine_path (Engine/Binaries/Win64).
@@ -67,7 +33,7 @@ pub async fn run_map_command(
 
     let engine_exe = Path::new(&engine_path);
     if !engine_exe.exists() {
-        emit_log(&app, "[ERROR] UnrealEditor.exe not found.", Some("red"));
+        stream_processor::emit_log(&app, "[ERROR] UnrealEditor.exe not found.", Some("red"));
         return Err("Engine path not found".to_string());
     }
 
@@ -94,12 +60,20 @@ pub async fn run_map_command(
     }
     args.push("-log".to_string());
 
-    emit_log(
+    let tool_mode = if extra_args.as_deref() == Some("-DeleteHLODs") {
+        ToolMode::DeleteHlod
+    } else if builder == "WorldPartitionMiniMapBuilder" {
+        ToolMode::BuildMiniMap
+    } else {
+        ToolMode::BuildHlod
+    };
+
+    stream_processor::emit_log(
         &app,
         &format!("Running {} for map: {}", builder, map_path),
         Some("blue"),
     );
-    emit_log(
+    stream_processor::emit_log(
         &app,
         &format!("Command: {} {}", engine_path, args.join(" ")),
         Some("gray"),
@@ -126,53 +100,9 @@ pub async fn run_map_command(
                 let se = c.stderr.take().ok_or("Failed to capture stderr")?;
                 (c, so, se)
             };
-            let app_stdout = app.clone();
-            let app_stderr = app.clone();
-
-            // Parse progress from stdout: [N / M] Building HLOD actor (or similar)
-            let progress_regex = regex::Regex::new(r"\[(\d+)\s*/\s*(\d+)\]")
-                .expect("invalid regex");
-
-            std::thread::spawn(move || {
-                let reader = std::io::BufReader::new(stdout);
-                for line in reader.lines().filter_map(Result::ok) {
-                    if line.is_empty() {
-                        continue;
-                    }
-                    let stripped = strip_ansi(&line);
-                    if let Some(caps) = progress_regex.captures(&stripped) {
-                        let current: u32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-                        let total: u32 = caps.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(1);
-                        let percent = if total > 0 {
-                            ((current as f64 / total as f64) * 100.0) as u32
-                        } else {
-                            0
-                        };
-                        let _ = app_stdout.emit("progress-update", ProgressEvent { percent });
-                    }
-                    let _ = app_stdout.emit(
-                        "log-output",
-                        LogEvent {
-                            line: stripped,
-                            color: None,
-                        },
-                    );
-                }
-            });
-            std::thread::spawn(move || {
-                let reader = std::io::BufReader::new(stderr);
-                for line in reader.lines().filter_map(Result::ok) {
-                    if !line.is_empty() {
-                        let _ = app_stderr.emit(
-                            "log-output",
-                            LogEvent {
-                                line: strip_ansi(&line),
-                                color: Some("red".to_string()),
-                            },
-                        );
-                    }
-                }
-            });
+            let stdout_reader = std::io::BufReader::new(stdout);
+            let stderr_reader = std::io::BufReader::new(stderr);
+            process_streams(stdout_reader, stderr_reader, app.clone(), tool_mode);
 
             #[cfg(windows)]
             child.wait()?;
@@ -188,10 +118,10 @@ pub async fn run_map_command(
 
     result?;
 
-    emit_log(&app, "HLOD generation completed.", Some("green"));
+    stream_processor::emit_log(&app, "HLOD generation completed.", Some("green"));
 
     if launch_map_after {
-        emit_log(&app, &format!("Launching editor with map: {}", map_path), Some("blue"));
+        stream_processor::emit_log(&app, &format!("Launching editor with map: {}", map_path), Some("blue"));
         let launch_args = vec![project_path.clone(), map_path.clone()];
         let mut launch_cmd = build_cmd(&engine_path, &launch_args, Some(&cwd));
         let _ = launch_cmd.spawn();
@@ -219,7 +149,7 @@ pub async fn run_build_lighting(
 
     let engine_exe = Path::new(&engine_path);
     if !engine_exe.exists() {
-        emit_log(&app, "[ERROR] UnrealEditor.exe not found.", Some("red"));
+        stream_processor::emit_log(&app, "[ERROR] UnrealEditor.exe not found.", Some("red"));
         return Err("Engine path not found".to_string());
     }
 
@@ -245,12 +175,12 @@ pub async fn run_build_lighting(
         }
     }
 
-    emit_log(
+    stream_processor::emit_log(
         &app,
         &format!("Running Build Static Lighting for map: {}", map_path),
         Some("blue"),
     );
-    emit_log(
+    stream_processor::emit_log(
         &app,
         &format!("Command: {} {}", engine_path, args.join(" ")),
         Some("gray"),
@@ -278,25 +208,9 @@ pub async fn run_build_lighting(
                 (c, so, se)
             };
 
-            let app_stdout = app.clone();
-            let app_stderr = app.clone();
-
-            std::thread::spawn(move || {
-                let reader = std::io::BufReader::new(stdout);
-                for line in reader.lines().filter_map(Result::ok) {
-                    if !line.is_empty() {
-                        emit_log(&app_stdout, &line, None);
-                    }
-                }
-            });
-            std::thread::spawn(move || {
-                let reader = std::io::BufReader::new(stderr);
-                for line in reader.lines().filter_map(Result::ok) {
-                    if !line.is_empty() {
-                        emit_log(&app_stderr, &line, Some("red"));
-                    }
-                }
-            });
+            let stdout_reader = std::io::BufReader::new(stdout);
+            let stderr_reader = std::io::BufReader::new(stderr);
+            process_streams(stdout_reader, stderr_reader, app.clone(), ToolMode::Generic);
 
             #[cfg(windows)]
             child.wait()?;
@@ -312,7 +226,7 @@ pub async fn run_build_lighting(
 
     result?;
 
-    emit_log(&app, "Build Static Lighting completed.", Some("green"));
+    stream_processor::emit_log(&app, "Build Static Lighting completed.", Some("green"));
 
     Ok(())
 }

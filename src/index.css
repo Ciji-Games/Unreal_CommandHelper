@@ -25,3 +25,24 @@ body {
   display: flex;
   flex-direction: column;
 }
+
+.progress-bar-fill {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 4px,
+    rgba(255, 255, 255, 0.35) 4px,
+    rgba(255, 255, 255, 0.35) 8px
+  );
+  background-size: 12px 12px;
+  animation: progress-shimmer 1.5s linear infinite;
+}
+
+@keyframes progress-shimmer {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 12px 0;
+  }
+}
