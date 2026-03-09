@@ -1,9 +1,10 @@
 /**
  * Regenerate project panel - nuke solution, delete cache/build, run UnrealVersionSelector.
- * Step 8: Mirrors RegenerateProject.cs
+ * Step 8: Mirrors RegenerateProject.cs. Step 10: Wrapped in ToolGroup.
  */
 
 import { useEffect, useState } from 'react';
+import { ToolGroup } from './ToolGroup';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../hooks/useProjects';
@@ -115,14 +116,10 @@ export function RegenerateProjectPanel() {
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="font-bold text-white mb-1">Regenerate Project</h3>
-        <p className="text-zinc-400 text-sm">
-          Nuke solution, delete cache/build, then regenerate project files via UnrealVersionSelector. Only for C++ projects.
-        </p>
-      </div>
-
+    <ToolGroup
+      title="Regenerate Project"
+      description="Nuke solution, delete cache/build, then regenerate project files via UnrealVersionSelector. Only for C++ projects."
+    >
       <div className="flex flex-col gap-3">
         <div>
           <label className="block text-sm text-zinc-300 mb-1">Project (C++ only)</label>
@@ -199,6 +196,6 @@ export function RegenerateProjectPanel() {
           {running ? 'Regenerating...' : 'Regenerate'}
         </button>
       </div>
-    </div>
+    </ToolGroup>
   );
 }

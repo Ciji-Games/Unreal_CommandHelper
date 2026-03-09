@@ -16,7 +16,7 @@ import { useLog } from '../contexts/LogContext';
 
 export interface LogEvent {
   line: string;
-  color?: 'green' | 'red' | 'orange' | 'blue' | 'white';
+  color?: 'green' | 'red' | 'orange' | 'blue' | 'white' | 'gray';
 }
 
 const colorClasses: Record<string, string> = {
@@ -25,6 +25,7 @@ const colorClasses: Record<string, string> = {
   orange: 'text-amber-400',
   blue: 'text-sky-400',
   white: 'text-zinc-200',
+  gray: 'text-zinc-500',
 };
 
 export function OutputLogPanel() {

@@ -22,6 +22,7 @@ pub fn run() {
             commands::regenerate::regenerate_project,
             commands::shader::get_shader_worker_status,
             commands::shader::set_shader_worker_priority,
+            commands::umap::run_map_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
