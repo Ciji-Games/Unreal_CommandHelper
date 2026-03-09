@@ -48,7 +48,16 @@ fn editor_path_to_engine_root(editor_path: &str) -> Option<std::path::PathBuf> {
     Some(p)
 }
 
-/// Cook content: UnrealEditor-Cmd.exe "project.uproject" -run=cook -targetplatform=Win64 -iterate -unattended -log
+/// Map UI platform (Win64, Linux, Mac) to Unreal cook target platform.
+/// TargetPlatformManager expects Windows/Linux/Mac, not Win64.
+fn platform_for_cook(platform: &str) -> &str {
+    match platform {
+        "Win64" => "Windows",
+        _ => platform,
+    }
+}
+
+/// Cook content: UnrealEditor-Cmd.exe "project.uproject" -run=cook -targetplatform=Windows -iterate -unattended -log
 #[tauri::command]
 pub async fn run_cook(
     project_path: String,
@@ -83,17 +92,18 @@ pub async fn run_cook(
         return Err("UnrealEditor-Cmd.exe not found".to_string());
     }
 
+    let cook_platform = platform_for_cook(&platform);
     let cwd = bin_dir.to_str().ok_or("Invalid Binaries path")?.to_string();
     let args = vec![
         project_path.clone(),
         "-run=cook".to_string(),
-        format!("-targetplatform={}", platform),
+        format!("-targetplatform={}", cook_platform),
         "-iterate".to_string(),
         "-unattended".to_string(),
         "-log".to_string(),
     ];
 
-    emit_log(&app, &format!("Running Cook for platform: {}", platform), Some("blue"));
+    emit_log(&app, &format!("Running Cook for platform: {} (target: {})", platform, cook_platform), Some("blue"));
     emit_log(&app, &format!("Command: {} {}", editor_cmd, args.join(" ")), None);
 
     let result = tokio::task::spawn_blocking({

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BaseLayout } from './components/BaseLayout';
 import { LauncherTab } from './components/LauncherTab';
 import { ToolBoxTab } from './components/ToolBoxTab';
+import { ShaderBoosterBackground } from './components/ShaderBoosterBackground';
 import { LogProvider } from './contexts/LogContext';
 
 function App() {
@@ -9,6 +10,7 @@ function App() {
 
   return (
     <LogProvider>
+      <ShaderBoosterBackground />
       <BaseLayout>
         <div className="flex flex-col gap-6 min-h-0 flex-1">
           {/* Tab navigation */}
