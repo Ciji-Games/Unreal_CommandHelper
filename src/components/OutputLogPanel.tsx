@@ -51,8 +51,8 @@ export function OutputLogPanel() {
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-2 min-h-0 flex-1">
+      <div className="flex items-center justify-between shrink-0">
         <h3 className="font-semibold text-white">Output Log</h3>
         <button
           type="button"
@@ -64,7 +64,7 @@ export function OutputLogPanel() {
       </div>
       <div
         ref={scrollRef}
-        className="h-48 overflow-y-auto rounded bg-zinc-900 p-3 font-mono text-sm leading-relaxed"
+        className="flex-1 min-h-0 overflow-y-auto rounded bg-zinc-900 p-3 font-mono text-sm leading-relaxed"
       >
         {lines.length === 0 ? (
           <p className="text-zinc-500 italic">Log output will appear here...</p>

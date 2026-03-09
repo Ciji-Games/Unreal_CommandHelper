@@ -10,7 +10,7 @@ function App() {
   return (
     <LogProvider>
       <BaseLayout>
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6 min-h-0 flex-1">
           {/* Tab navigation */}
           <div className="flex gap-2 border-b border-zinc-800 pb-2">
             <button
@@ -38,7 +38,11 @@ function App() {
           </div>
 
           {activeTab === 'launcher' && <LauncherTab />}
-          {activeTab === 'toolbox' && <ToolBoxTab />}
+          {activeTab === 'toolbox' && (
+            <div className="flex-1 min-h-0 flex flex-col">
+              <ToolBoxTab />
+            </div>
+          )}
         </div>
       </BaseLayout>
     </LogProvider>

@@ -27,8 +27,9 @@ export function ToolBoxTab() {
   const SelectedPanel = TOOLS.find((t) => t.id === selectedToolId)?.panel ?? RegenerateProjectPanel;
 
   return (
-    <div className="flex flex-col gap-4 h-full">
-      <div className="flex gap-4 flex-1 min-h-0">
+    <div className="flex flex-col gap-4 flex-1 min-h-0">
+      {/* Tool area - fixed 60% of vertical space for stable layout when switching tools */}
+      <div className="flex gap-4 flex-[6_1_0] min-h-0 overflow-hidden">
         {/* Left: Vertical menu */}
         <div className="w-44 shrink-0 flex flex-col">
           <nav className="flex flex-col gap-0.5 rounded-lg overflow-hidden bg-zinc-900/80 border border-zinc-800">
@@ -50,13 +51,15 @@ export function ToolBoxTab() {
         </div>
 
         {/* Right: Content panel */}
-        <div className="flex-1 min-w-0 rounded-lg border border-zinc-800 bg-zinc-900/50 p-6 overflow-y-auto">
+        <div className="flex-1 min-w-0 min-h-0 rounded-lg border border-zinc-800 bg-zinc-900/50 p-6 overflow-y-auto">
           <SelectedPanel />
         </div>
       </div>
 
-      {/* Output Log - full width below */}
-      <OutputLogPanel />
+      {/* Output Log - fixed 40% of vertical space for stable layout when switching tools */}
+      <div className="flex-[4_1_0] min-h-0 flex flex-col min-w-0 overflow-hidden">
+        <OutputLogPanel />
+      </div>
     </div>
   );
 }

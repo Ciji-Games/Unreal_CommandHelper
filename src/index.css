@@ -4,9 +4,24 @@
   --color-accent: #dda209;
 }
 
-body {
+html,
+body,
+#root {
+  height: 100%;
   margin: 0;
+}
+
+body {
   min-height: 100vh;
   background-color: #09090b; /* zinc-950 */
   color: #fafafa;
+  display: flex;
+  flex-direction: column;
+}
+
+#root {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
