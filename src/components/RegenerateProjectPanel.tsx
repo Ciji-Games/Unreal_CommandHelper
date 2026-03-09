@@ -84,14 +84,6 @@ export function RegenerateProjectPanel() {
       alert('UnrealVersionSelector.exe not found. Please set the path in settings.');
       return;
     }
-    if (hasBlockingProcesses) {
-      const names = blockingProcesses.map((p) => p.displayName).join(', ');
-      const proceed = window.confirm(
-        `The following programs are running and may prevent proper project generation:\n\n${names}\n\nClose them before regenerating for best results. Continue anyway?`
-      );
-      if (!proceed) return;
-    }
-
     const selectedProject = projects.find((p) => p.projectPath === selectedPath);
     const enginePath = selectedProject?.engineInstallPath ?? '';
 
@@ -149,10 +141,10 @@ export function RegenerateProjectPanel() {
 
         {hasBlockingProcesses && (
           <div className="rounded-lg border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
-            <p className="font-medium">Warning: The following programs are running</p>
+            <p className="font-medium">Cannot regenerate: The following programs are running</p>
             <p className="mt-1 text-amber-200/90">
               {blockingProcesses.map((p) => p.displayName).join(', ')} — close them before
-              regenerating for proper project generation.
+              regenerating.
             </p>
           </div>
         )}
@@ -190,7 +182,13 @@ export function RegenerateProjectPanel() {
         <button
           type="button"
           onClick={handleRegenerate}
-          disabled={!selectedPath || selectedPath === '__browse__' || running || cppProjects.length === 0}
+          disabled={
+            !selectedPath ||
+            selectedPath === '__browse__' ||
+            running ||
+            cppProjects.length === 0 ||
+            hasBlockingProcesses
+          }
           className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors"
         >
           {running ? 'Regenerating...' : 'Regenerate'}

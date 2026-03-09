@@ -51,10 +51,18 @@ pub mod process_groups {
         },
     ];
 
+    /// Processes that block HLOD/MiniMap build/delete (Unreal must be closed; VS/Rider are fine)
+    pub const UMAP_BLOCKING: &[ProcessDefinition] = &[ProcessDefinition {
+        id: "unreal_engine",
+        display_name: "Unreal Engine",
+        patterns: &["UnrealEditor"],
+    }];
+
     /// All known process groups - extend when adding new features
     pub fn get_group(group_name: &str) -> Option<&'static [ProcessDefinition]> {
         match group_name {
             "regenerate" => Some(REGENERATE_BLOCKING),
+            "umap" => Some(UMAP_BLOCKING),
             _ => None,
         }
     }

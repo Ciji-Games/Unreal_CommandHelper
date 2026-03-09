@@ -8,6 +8,7 @@ use std::path::Path;
 use tauri::{AppHandle, Emitter};
 use walkdir::WalkDir;
 
+use crate::commands::monitor;
 use crate::commands::registry;
 use crate::utils::{build_cmd, strip_ansi};
 
@@ -118,6 +119,12 @@ pub async fn build_plugin(
     create_zip: bool,
     app: AppHandle,
 ) -> Result<String, String> {
+    if monitor::has_blocking_processes("umap".to_string())? {
+        return Err(
+            "Cannot build plugin: Unreal Engine is running. Close it first.".to_string(),
+        );
+    }
+
     let uplugin = Path::new(&uplugin_path);
     if !uplugin.exists() || uplugin.extension().map_or(true, |e| e != "uplugin") {
         return Err("Invalid or missing .uplugin file".to_string());

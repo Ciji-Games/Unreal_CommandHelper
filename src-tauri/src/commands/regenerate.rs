@@ -5,6 +5,7 @@ use std::path::Path;
 
 use tauri::{AppHandle, Emitter};
 
+use crate::commands::monitor;
 use crate::utils::{build_cmd, strip_ansi};
 
 /// Log line color - matches old launcher (CustomGroup.cs, Form1.AppendLog)
@@ -75,6 +76,12 @@ pub async fn regenerate_project(
     if !Path::new(&version_selector_path).exists() {
         emit_log(&app, "[ERROR] UnrealVersionSelector.exe not found.", Some("red"));
         return Err("UnrealVersionSelector.exe not found".to_string());
+    }
+
+    if monitor::has_blocking_processes("regenerate".to_string())? {
+        return Err(
+            "Cannot regenerate: Unreal Engine, Visual Studio, or JetBrains Rider is running. Close them first.".to_string(),
+        );
     }
 
     let result = tokio::task::spawn_blocking({

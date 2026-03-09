@@ -6,6 +6,7 @@ use std::path::Path;
 
 use tauri::{AppHandle, Emitter};
 
+use crate::commands::monitor;
 use crate::utils::{build_cmd, strip_ansi};
 #[cfg(windows)]
 use crate::utils::spawn_minimized;
@@ -57,6 +58,12 @@ pub async fn run_map_command(
     launch_map_after: bool,
     app: AppHandle,
 ) -> Result<(), String> {
+    if monitor::has_blocking_processes("umap".to_string())? {
+        return Err(
+            "Cannot run map command: Unreal Engine is running. Close it first.".to_string(),
+        );
+    }
+
     let engine_exe = Path::new(&engine_path);
     if !engine_exe.exists() {
         emit_log(&app, "[ERROR] UnrealEditor.exe not found.", Some("red"));

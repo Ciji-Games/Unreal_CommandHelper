@@ -8,9 +8,12 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../hooks/useProjects';
 import { useLog } from '../contexts/LogContext';
+import { useProcessMonitor } from '../hooks/useProcessMonitor';
 import { ToolGroup } from './ToolGroup';
 import type { ProjectInfo } from '../types';
 import type { EngineEntry } from '../types';
+
+const PLUGIN_PROCESS_GROUP = 'umap';
 
 export interface PluginInfo {
   name: string;
@@ -21,6 +24,8 @@ export interface PluginInfo {
 export function PluginHelperPanel() {
   const { projects, addProject } = useProjects();
   const { clearLog } = useLog();
+  const { runningProcesses: blockingProcesses, hasBlockingProcesses } =
+    useProcessMonitor(PLUGIN_PROCESS_GROUP);
   const [selectedProjectPath, setSelectedProjectPath] = useState<string>('');
   const [selectedPlugin, setSelectedPlugin] = useState<PluginInfo | null>(null);
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
@@ -226,6 +231,16 @@ export function PluginHelperPanel() {
           Zip package (filename: PluginName_EngineVersion.zip)
         </label>
 
+        {hasBlockingProcesses && (
+          <div className="rounded-lg border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+            <p className="font-medium">Cannot build: Unreal Engine is running</p>
+            <p className="mt-1 text-amber-200/90">
+              {blockingProcesses.map((p) => p.displayName).join(', ')} — close it before building
+              the plugin.
+            </p>
+          </div>
+        )}
+
         <button
           type="button"
           onClick={handleBuild}
@@ -233,7 +248,8 @@ export function PluginHelperPanel() {
             !selectedPlugin ||
             !selectedEngineVersion ||
             running ||
-            selectedProjectPath === '__browse__'
+            selectedProjectPath === '__browse__' ||
+            hasBlockingProcesses
           }
           className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors"
         >
