@@ -58,11 +58,19 @@ pub mod process_groups {
         patterns: &["UnrealEditor"],
     }];
 
+    /// Processes that block Cook/Package/Build (Unreal must be closed)
+    pub const UPROJECT_BLOCKING: &[ProcessDefinition] = &[ProcessDefinition {
+        id: "unreal_engine",
+        display_name: "Unreal Engine",
+        patterns: &["UnrealEditor"],
+    }];
+
     /// All known process groups - extend when adding new features
     pub fn get_group(group_name: &str) -> Option<&'static [ProcessDefinition]> {
         match group_name {
             "regenerate" => Some(REGENERATE_BLOCKING),
             "umap" => Some(UMAP_BLOCKING),
+            "uproject" => Some(UPROJECT_BLOCKING),
             _ => None,
         }
     }

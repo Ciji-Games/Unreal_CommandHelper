@@ -23,6 +23,10 @@ pub fn run() {
             commands::shader::get_shader_worker_status,
             commands::shader::set_shader_worker_priority,
             commands::umap::run_map_command,
+            commands::umap::run_build_lighting,
+            commands::uproject::run_cook,
+            commands::uproject::run_package,
+            commands::uproject::run_build,
             commands::plugin::list_plugins_for_project,
             commands::plugin::build_plugin,
         ])

@@ -1,4 +1,5 @@
-//! UMap Helper command - run WorldPartitionBuilderCommandlet for HLOD, MiniMap, Delete HLOD.
+//! UMap Helper command - run WorldPartitionBuilderCommandlet for HLOD, MiniMap, Delete HLOD,
+//! and ResavePackages for Build Static Lighting.
 //! Step 11: Mirrors UmapHelper.cs RunMapCommand
 
 use std::io::BufRead;
@@ -195,6 +196,123 @@ pub async fn run_map_command(
         let mut launch_cmd = build_cmd(&engine_path, &launch_args, Some(&cwd));
         let _ = launch_cmd.spawn();
     }
+
+    Ok(())
+}
+
+/// Run ResavePackages commandlet with -BuildLighting for static lighting.
+/// Working directory: parent of engine_path (Engine/Binaries/Win64).
+/// No launch_map_after - lighting build completes and exits.
+#[tauri::command]
+pub async fn run_build_lighting(
+    project_path: String,
+    map_path: String,
+    engine_path: String,
+    quality: Option<String>,
+    app: AppHandle,
+) -> Result<(), String> {
+    if monitor::has_blocking_processes("umap".to_string())? {
+        return Err(
+            "Cannot run build lighting: Unreal Engine is running. Close it first.".to_string(),
+        );
+    }
+
+    let engine_exe = Path::new(&engine_path);
+    if !engine_exe.exists() {
+        emit_log(&app, "[ERROR] UnrealEditor.exe not found.", Some("red"));
+        return Err("Engine path not found".to_string());
+    }
+
+    let cwd: String = engine_exe
+        .parent()
+        .and_then(|p| p.to_str())
+        .filter(|s| !s.is_empty())
+        .ok_or("Invalid engine path")?
+        .to_string();
+
+    let mut args = vec![
+        project_path.clone(),
+        "-run=ResavePackages".to_string(),
+        "-BuildLighting".to_string(),
+        "-AllowCommandletRendering".to_string(),
+        format!("-map={}", map_path),
+        "-Unattended".to_string(),
+        "-log".to_string(),
+    ];
+    if let Some(ref q) = quality {
+        if !q.is_empty() {
+            args.push(format!("-Quality={}", q));
+        }
+    }
+
+    emit_log(
+        &app,
+        &format!("Running Build Static Lighting for map: {}", map_path),
+        Some("blue"),
+    );
+    emit_log(
+        &app,
+        &format!("Command: {} {}", engine_path, args.join(" ")),
+        Some("gray"),
+    );
+
+    let result = tokio::task::spawn_blocking({
+        let app = app.clone();
+        let engine_path = engine_path.clone();
+        let cwd = cwd.clone();
+        let args = args.clone();
+        move || -> Result<(), String> {
+            #[cfg(windows)]
+            let (mut child, stdout, stderr) = {
+                spawn_minimized(&engine_path, &args, &cwd)?
+            };
+
+            #[cfg(not(windows))]
+            let (mut child, stdout, stderr) = {
+                let mut cmd = build_cmd(&engine_path, &args, Some(cwd.as_str()));
+                cmd.stdout(std::process::Stdio::piped());
+                cmd.stderr(std::process::Stdio::piped());
+                let mut c = cmd.spawn().map_err(|e| e.to_string())?;
+                let so = c.stdout.take().ok_or("Failed to capture stdout")?;
+                let se = c.stderr.take().ok_or("Failed to capture stderr")?;
+                (c, so, se)
+            };
+
+            let app_stdout = app.clone();
+            let app_stderr = app.clone();
+
+            std::thread::spawn(move || {
+                let reader = std::io::BufReader::new(stdout);
+                for line in reader.lines().filter_map(Result::ok) {
+                    if !line.is_empty() {
+                        emit_log(&app_stdout, &line, None);
+                    }
+                }
+            });
+            std::thread::spawn(move || {
+                let reader = std::io::BufReader::new(stderr);
+                for line in reader.lines().filter_map(Result::ok) {
+                    if !line.is_empty() {
+                        emit_log(&app_stderr, &line, Some("red"));
+                    }
+                }
+            });
+
+            #[cfg(windows)]
+            child.wait()?;
+            #[cfg(not(windows))]
+            {
+                child.wait().map_err(|e| e.to_string())?;
+            }
+            Ok(())
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    result?;
+
+    emit_log(&app, "Build Static Lighting completed.", Some("green"));
 
     Ok(())
 }

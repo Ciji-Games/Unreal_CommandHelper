@@ -8,3 +8,4 @@ pub mod regenerate;
 pub mod registry;
 pub mod shader;
 pub mod umap;
+pub mod uproject;

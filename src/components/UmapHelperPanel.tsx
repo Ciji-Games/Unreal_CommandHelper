@@ -1,7 +1,9 @@
 /**
- * UMap Helper panel - HLOD, MiniMap, Delete HLOD commandlets.
+ * UMap Helper panel - HLOD, MiniMap, static lighting, Delete HLOD commandlets.
  * Step 11: Mirrors UmapHelper.cs
  */
+
+const LIGHTING_QUALITIES = ['Preview', 'Medium', 'High', 'Production', 'MAX'] as const;
 
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
@@ -23,6 +25,7 @@ export function UmapHelperPanel() {
   const [selectedProjectPath, setSelectedProjectPath] = useState<string>('');
   const [selectedMapPath, setSelectedMapPath] = useState<string>('');
   const [launchMapAfter, setLaunchMapAfter] = useState(false);
+  const [lightingQuality, setLightingQuality] = useState<string>('Production');
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<number>(0);
 
@@ -119,6 +122,37 @@ export function UmapHelperPanel() {
   const handleDeleteHLOD = () =>
     runCommand('WorldPartitionHLODsBuilder', '-DeleteHLODs', 'HLOD deletion');
 
+  const handleBuildLighting = async () => {
+    if (!selectedProject || !selectedMapPath) {
+      alert('Please select a valid project and map.');
+      return;
+    }
+    const enginePath = selectedProject.engineInstallPath;
+    if (!enginePath || enginePath === 'Unknown') {
+      alert('Engine path not found for this project. Ensure the project uses an installed engine.');
+      return;
+    }
+
+    clearLog();
+    setRunning(true);
+    setProgress(0);
+    try {
+      await invoke('run_build_lighting', {
+        projectPath: selectedProject.projectPath,
+        mapPath: selectedMapPath,
+        enginePath,
+        quality: lightingQuality || undefined,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('Build lighting failed:', e);
+      alert(`Build Static Lighting failed: ${msg}`);
+    } finally {
+      setRunning(false);
+      setProgress(100);
+    }
+  };
+
   // Map display: show short name (filename without path) in dropdown, but we need full path for the command
   const mapDisplayName = (mapPath: string) => {
     const parts = mapPath.split('/');
@@ -128,7 +162,7 @@ export function UmapHelperPanel() {
   return (
     <ToolGroup
       title="UMap Helper"
-      description="Various ucommand for maps! Build HLOD, MiniMap, or delete HLOD."
+      description="World Partition (HLOD, MiniMap) and Static Lighting commands for maps."
     >
       <div className="flex flex-col gap-3">
         <div>
@@ -175,7 +209,7 @@ export function UmapHelperPanel() {
             <p className="font-medium">Cannot build/delete: Unreal Engine is running</p>
             <p className="mt-1 text-amber-200/90">
               {blockingProcesses.map((p) => p.displayName).join(', ')} — close it before running
-              HLOD or MiniMap commands.
+              HLOD, MiniMap, or static lighting commands.
             </p>
           </div>
         )}
@@ -191,42 +225,74 @@ export function UmapHelperPanel() {
           </div>
         )}
 
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={handleBuildHLOD}
-            disabled={!selectedMapPath || running || hasBlockingProcesses}
-            className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors"
-          >
-            Build HLOD
-          </button>
-          <button
-            type="button"
-            onClick={handleBuildMiniMap}
-            disabled={!selectedMapPath || running || hasBlockingProcesses}
-            className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors"
-          >
-            Build MiniMap
-          </button>
-          <button
-            type="button"
-            onClick={handleDeleteHLOD}
-            disabled={!selectedMapPath || running || hasBlockingProcesses}
-            className="rounded px-4 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-medium transition-colors"
-          >
-            Delete HLOD
-          </button>
+        {/* World Partition section */}
+        <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4 space-y-3">
+          <h4 className="text-sm font-semibold text-zinc-200">World Partition</h4>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleBuildHLOD}
+              disabled={!selectedMapPath || running || hasBlockingProcesses}
+              className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors"
+            >
+              Build HLOD
+            </button>
+            <button
+              type="button"
+              onClick={handleBuildMiniMap}
+              disabled={!selectedMapPath || running || hasBlockingProcesses}
+              className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors"
+            >
+              Build MiniMap
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteHLOD}
+              disabled={!selectedMapPath || running || hasBlockingProcesses}
+              className="rounded px-4 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-medium transition-colors"
+            >
+              Delete HLOD
+            </button>
+          </div>
+          <label className="flex items-center gap-2 text-zinc-300 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={launchMapAfter}
+              onChange={(e) => setLaunchMapAfter(e.target.checked)}
+              className="rounded border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
+            />
+            Launch map after completion
+          </label>
         </div>
 
-        <label className="flex items-center gap-2 text-zinc-300 text-sm cursor-pointer">
-          <input
-            type="checkbox"
-            checked={launchMapAfter}
-            onChange={(e) => setLaunchMapAfter(e.target.checked)}
-            className="rounded border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
-          />
-          Launch map after completion
-        </label>
+        {/* Static Lighting section */}
+        <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4 space-y-3">
+          <h4 className="text-sm font-semibold text-zinc-200">Static Lighting</h4>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleBuildLighting}
+              disabled={!selectedMapPath || running || hasBlockingProcesses}
+              className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors"
+            >
+              Build Static Lighting
+            </button>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-zinc-300">Quality:</label>
+              <select
+                value={lightingQuality}
+                onChange={(e) => setLightingQuality(e.target.value)}
+                className="rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-1.5 text-sm focus:border-amber-500 focus:outline-none"
+              >
+                {LIGHTING_QUALITIES.map((q) => (
+                  <option key={q} value={q}>
+                    {q}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
     </ToolGroup>
   );
