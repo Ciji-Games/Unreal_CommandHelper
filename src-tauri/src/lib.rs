@@ -23,6 +23,8 @@ pub fn run() {
             commands::shader::get_shader_worker_status,
             commands::shader::set_shader_worker_priority,
             commands::umap::run_map_command,
+            commands::plugin::list_plugins_for_project,
+            commands::plugin::build_plugin,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

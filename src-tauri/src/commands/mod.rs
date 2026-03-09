@@ -1,6 +1,7 @@
 //! Tauri commands for UE Launcher
 
 pub mod monitor;
+pub mod plugin;
 pub mod process;
 pub mod projects;
 pub mod regenerate;
