@@ -1,5 +1,6 @@
 mod commands;
 mod progress_parser;
+mod running_process;
 mod stream_processor;
 mod types;
 mod utils;
@@ -19,6 +20,7 @@ pub fn run() {
             commands::process::open_file,
             commands::process::run_command,
             commands::process::kill_process,
+            commands::process::stop_running_process,
             commands::monitor::get_process_status,
             commands::monitor::has_blocking_processes,
             commands::regenerate::regenerate_project,

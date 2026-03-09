@@ -8,6 +8,7 @@ use tauri::AppHandle;
 
 use crate::commands::monitor;
 use crate::progress_parser::ToolMode;
+use crate::running_process;
 use crate::stream_processor::{self, process_streams};
 use crate::utils::build_cmd;
 
@@ -112,6 +113,7 @@ pub async fn regenerate_project(
             cmd.stderr(std::process::Stdio::piped());
 
             let mut child = cmd.spawn().map_err(|e| e.to_string())?;
+            running_process::set_running_pid(child.id());
             let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
             let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
             let stdout_reader = std::io::BufReader::new(stdout);
@@ -119,6 +121,7 @@ pub async fn regenerate_project(
             process_streams(stdout_reader, stderr_reader, app.clone(), ToolMode::Regenerate);
 
             child.wait().map_err(|e| e.to_string())?;
+            running_process::clear_running_pid();
             Ok(())
         }
     })
@@ -172,6 +175,7 @@ pub async fn regenerate_project(
                             cmd.stderr(std::process::Stdio::piped());
 
                             let mut child = cmd.spawn().map_err(|e| e.to_string())?;
+                            running_process::set_running_pid(child.id());
                             let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
                             let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
                             let stdout_reader = std::io::BufReader::new(stdout);
@@ -179,6 +183,7 @@ pub async fn regenerate_project(
                             process_streams(stdout_reader, stderr_reader, app.clone(), ToolMode::Build);
 
                             let status = child.wait().map_err(|e| e.to_string())?;
+                            running_process::clear_running_pid();
                             if status.success() {
                                 stream_processor::emit_log(&app, "Build completed successfully!", Some("green"));
                                 Ok(())

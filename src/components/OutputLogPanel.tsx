@@ -10,7 +10,8 @@
  * - White: Default
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useLog } from '../contexts/LogContext';
 import { useProgress } from '../contexts/ProgressContext';
@@ -40,10 +41,25 @@ function formatElapsed(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
+function StopIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden
+    >
+      <rect x="6" y="6" width="12" height="12" rx="1" />
+    </svg>
+  );
+}
+
 export function OutputLogPanel() {
   const { lines, appendLine, clearLog } = useLog();
-  const { running, percent, elapsedMs } = useProgress();
+  const { running, percent, elapsedMs, finishProgress } = useProgress();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [stopping, setStopping] = useState(false);
 
   useEffect(() => {
     const unlisten = listen<LogEvent>('log-output', (event) => {
@@ -61,6 +77,20 @@ export function OutputLogPanel() {
 
   const handleClear = () => {
     clearLog();
+  };
+
+  const handleStop = async () => {
+    if (!running || stopping) return;
+    setStopping(true);
+    try {
+      await invoke('stop_running_process');
+      finishProgress();
+    } catch (e) {
+      const msg = typeof e === 'string' ? e : (e as Error)?.message ?? 'Failed to stop';
+      appendLine({ line: msg, color: 'red' });
+    } finally {
+      setStopping(false);
+    }
   };
 
   return (
@@ -105,6 +135,16 @@ export function OutputLogPanel() {
           <span className="text-sm text-zinc-400 tabular-nums min-w-[3rem]">
             {formatElapsed(elapsedMs)}
           </span>
+          <button
+            type="button"
+            onClick={handleStop}
+            disabled={stopping}
+            className="rounded p-1.5 text-red-400 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            title="Stop process"
+            aria-label="Stop process"
+          >
+            <StopIcon className="w-4 h-4" />
+          </button>
         </div>
       )}
     </div>

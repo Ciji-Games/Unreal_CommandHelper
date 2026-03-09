@@ -110,13 +110,13 @@ impl Drop for SpawnMinimizedChild {
 }
 
 /// Spawn a process with minimized window on Windows. Uses CreateProcessW with STARTUPINFOW.
-/// Returns (child, stdout pipe, stderr pipe). Call child.wait() to block until process exits.
+/// Returns (child, stdout pipe, stderr pipe, pid). Call child.wait() to block until process exits.
 #[cfg(windows)]
 pub fn spawn_minimized(
     exe: &str,
     args: &[String],
     cwd: &str,
-) -> Result<(SpawnMinimizedChild, std::fs::File, std::fs::File), String> {
+) -> Result<(SpawnMinimizedChild, std::fs::File, std::fs::File, u32), String> {
     use windows::core::PCWSTR;
     use windows::Win32::Foundation::HANDLE;
     use windows::Win32::System::Pipes::CreatePipe;
@@ -202,6 +202,7 @@ pub fn spawn_minimized(
         process_handle: pi.hProcess,
         thread_handle: pi.hThread,
     };
+    let pid = pi.dwProcessId;
 
-    Ok((child, stdout_file, stderr_file))
+    Ok((child, stdout_file, stderr_file, pid))
 }

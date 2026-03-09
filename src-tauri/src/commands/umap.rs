@@ -8,6 +8,7 @@ use tauri::AppHandle;
 
 use crate::commands::monitor;
 use crate::progress_parser::ToolMode;
+use crate::running_process;
 use crate::stream_processor::{self, process_streams};
 use crate::utils::build_cmd;
 #[cfg(windows)]
@@ -86,20 +87,23 @@ pub async fn run_map_command(
         let args = args.clone();
         move || -> Result<(), String> {
             #[cfg(windows)]
-            let (mut child, stdout, stderr) = {
-                spawn_minimized(&engine_path, &args, &cwd)?
+            let (mut child, stdout, stderr, pid) = {
+                let (c, so, se, p) = spawn_minimized(&engine_path, &args, &cwd)?;
+                (c, so, se, p)
             };
 
             #[cfg(not(windows))]
-            let (mut child, stdout, stderr) = {
+            let (mut child, stdout, stderr, pid) = {
                 let mut cmd = build_cmd(&engine_path, &args, Some(cwd.as_str()));
                 cmd.stdout(std::process::Stdio::piped());
                 cmd.stderr(std::process::Stdio::piped());
                 let mut c = cmd.spawn().map_err(|e| e.to_string())?;
+                let pid = c.id();
                 let so = c.stdout.take().ok_or("Failed to capture stdout")?;
                 let se = c.stderr.take().ok_or("Failed to capture stderr")?;
-                (c, so, se)
+                (c, so, se, pid)
             };
+            running_process::set_running_pid(pid);
             let stdout_reader = std::io::BufReader::new(stdout);
             let stderr_reader = std::io::BufReader::new(stderr);
             process_streams(stdout_reader, stderr_reader, app.clone(), tool_mode);
@@ -110,6 +114,7 @@ pub async fn run_map_command(
             {
                 child.wait().map_err(|e| e.to_string())?;
             }
+            running_process::clear_running_pid();
             Ok(())
         }
     })
@@ -193,21 +198,23 @@ pub async fn run_build_lighting(
         let args = args.clone();
         move || -> Result<(), String> {
             #[cfg(windows)]
-            let (mut child, stdout, stderr) = {
-                spawn_minimized(&engine_path, &args, &cwd)?
+            let (mut child, stdout, stderr, pid) = {
+                let (c, so, se, p) = spawn_minimized(&engine_path, &args, &cwd)?;
+                (c, so, se, p)
             };
 
             #[cfg(not(windows))]
-            let (mut child, stdout, stderr) = {
+            let (mut child, stdout, stderr, pid) = {
                 let mut cmd = build_cmd(&engine_path, &args, Some(cwd.as_str()));
                 cmd.stdout(std::process::Stdio::piped());
                 cmd.stderr(std::process::Stdio::piped());
                 let mut c = cmd.spawn().map_err(|e| e.to_string())?;
+                let pid = c.id();
                 let so = c.stdout.take().ok_or("Failed to capture stdout")?;
                 let se = c.stderr.take().ok_or("Failed to capture stderr")?;
-                (c, so, se)
+                (c, so, se, pid)
             };
-
+            running_process::set_running_pid(pid);
             let stdout_reader = std::io::BufReader::new(stdout);
             let stderr_reader = std::io::BufReader::new(stderr);
             process_streams(stdout_reader, stderr_reader, app.clone(), ToolMode::Generic);
@@ -218,6 +225,7 @@ pub async fn run_build_lighting(
             {
                 child.wait().map_err(|e| e.to_string())?;
             }
+            running_process::clear_running_pid();
             Ok(())
         }
     })

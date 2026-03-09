@@ -10,6 +10,7 @@ use walkdir::WalkDir;
 use crate::commands::monitor;
 use crate::commands::registry;
 use crate::progress_parser::ToolMode;
+use crate::running_process;
 use crate::stream_processor::{self, process_streams};
 use crate::utils::build_cmd;
 
@@ -171,6 +172,7 @@ pub async fn build_plugin(
             cmd.stderr(std::process::Stdio::piped());
 
             let mut child = cmd.spawn().map_err(|e| e.to_string())?;
+            running_process::set_running_pid(child.id());
             let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
             let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
             let stdout_reader = std::io::BufReader::new(stdout);
@@ -178,6 +180,7 @@ pub async fn build_plugin(
             process_streams(stdout_reader, stderr_reader, app.clone(), ToolMode::Build);
 
             child.wait().map_err(|e| e.to_string())?;
+            running_process::clear_running_pid();
 
             // BuildPlugin outputs to Package/PluginName/ or directly to Package/ (with Binaries, Content, etc.)
             let package_dir = plugin_folder.join("Build");

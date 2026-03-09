@@ -4,7 +4,22 @@
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
+use tauri::AppHandle;
+
+use crate::running_process;
+use crate::stream_processor;
 use crate::utils::{build_cmd, kill_pid};
+
+/// Stop the currently running tool (Cook, Package, Build, etc.).
+/// Uses taskkill /T /F to terminate the process and its child tree.
+#[tauri::command]
+pub fn stop_running_process(app: AppHandle) -> Result<(), String> {
+    let pid = running_process::take_running_pid().ok_or("No process is currently running.")?;
+    kill_pid(pid)?;
+    stream_processor::emit_log(&app, "Process stopped by user.", Some("orange"));
+    stream_processor::emit_progress(&app, 100, 0);
+    Ok(())
+}
 
 /// Open a file with the default application (e.g. .uproject → UnrealVersionSelector, .sln → VS/Rider).
 /// Uses shell association on Windows.
