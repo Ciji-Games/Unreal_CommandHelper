@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
+import { open, save } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../hooks/useProjects';
 import { useLog } from '../contexts/LogContext';
 import { useProgress } from '../contexts/ProgressContext';
@@ -27,22 +27,26 @@ export function UProjectHelperPanel() {
   const [platform, setPlatform] = useState('Win64');
   const [packageConfig, setPackageConfig] = useState('Development');
   const [archiveDirectory, setArchiveDirectory] = useState<string>('');
+  const [archiveZipPath, setArchiveZipPath] = useState<string>('');
   const [running, setRunning] = useState(false);
 
   const selectedProject = projects.find((p) => p.projectPath === selectedProjectPath);
 
-  // Default archive directory: {project_dir}/Saved/StagedBuilds (reset when project changes)
+  // Default package output: {project_dir}/Saved/StagedBuilds; default archive zip: {project_dir}/{ProjectName}.zip
   useEffect(() => {
     if (!selectedProjectPath) {
       setArchiveDirectory('');
+      setArchiveZipPath('');
       return;
     }
     const lastSlash = selectedProjectPath.lastIndexOf('/');
     const backslash = selectedProjectPath.lastIndexOf('\\');
     const sep = lastSlash > backslash ? lastSlash : backslash;
     const projectDir = sep >= 0 ? selectedProjectPath.slice(0, sep) : selectedProjectPath;
-    const defaultArchive = `${projectDir}/Saved/StagedBuilds`;
-    setArchiveDirectory(defaultArchive);
+    const projectName =
+      selectedProjectPath.split(/[/\\]/).pop()?.replace(/\.uproject$/, '') ?? 'Project';
+    setArchiveDirectory(`${projectDir}/Saved/StagedBuilds`);
+    setArchiveZipPath(`${projectDir}/${projectName}.zip`);
   }, [selectedProjectPath]);
 
   const handleProjectChange = async (value: string) => {
@@ -75,6 +79,18 @@ export function UProjectHelperPanel() {
     });
     if (path && typeof path === 'string') {
       setArchiveDirectory(path);
+    }
+  };
+
+  const handleBrowseArchiveZip = async () => {
+    const projectName =
+      selectedProjectPath.split(/[/\\]/).pop()?.replace(/\.uproject$/, '') ?? 'Project';
+    const path = await save({
+      filters: [{ name: 'Zip archive', extensions: ['zip'] }],
+      defaultPath: `${projectName}.zip`,
+    });
+    if (path && typeof path === 'string') {
+      setArchiveZipPath(path);
     }
   };
 
@@ -136,6 +152,36 @@ export function UProjectHelperPanel() {
     }
   };
 
+  const runArchive = async () => {
+    if (!selectedProject) return;
+    const enginePath = selectedProject.engineInstallPath;
+    if (!enginePath || enginePath === 'Unknown') {
+      alert('Engine path not found for this project. Ensure the project uses an installed engine.');
+      return;
+    }
+    if (!archiveZipPath.trim()) {
+      alert('Please set the archive output path (e.g. C:/path/to/ProjectName.zip).');
+      return;
+    }
+    clearLog();
+    setRunning(true);
+    startProgress();
+    try {
+      await invoke('run_archive', {
+        projectPath: selectedProject.projectPath,
+        outputZipPath: archiveZipPath.trim(),
+        enginePath,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('Archive failed:', e);
+      alert(`Archive failed: ${msg}`);
+    } finally {
+      setRunning(false);
+      finishProgress();
+    }
+  };
+
   const runBuild = async () => {
     if (!selectedProject) return;
     if (!selectedProject.isCpp) {
@@ -172,7 +218,7 @@ export function UProjectHelperPanel() {
   return (
     <ToolGroup
       title="UProject Helper"
-      description="Cook content, Package (Build+Cook+Stage+Pak), or Build (compile only)."
+      description="Cook, Package (Build+Cook+Stage+Pak), Archive (ZipProjectUp), or Build (compile only)."
     >
       <div className="flex flex-col gap-3">
         <div>
@@ -249,12 +295,36 @@ export function UProjectHelperPanel() {
           </div>
         </div>
 
+        <div>
+          <label className="block text-sm text-zinc-300 mb-1">
+            Archive (Zip) — project source, minimal files
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={archiveZipPath}
+              onChange={(e) => setArchiveZipPath(e.target.value)}
+              placeholder="{project}/ProjectName.zip"
+              disabled={!selectedProjectPath}
+              className="flex-1 rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:opacity-50"
+            />
+            <button
+              type="button"
+              onClick={handleBrowseArchiveZip}
+              disabled={!selectedProjectPath}
+              className="rounded px-3 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white text-sm font-medium transition-colors"
+            >
+              Browse
+            </button>
+          </div>
+        </div>
+
         {hasBlockingProcesses && (
           <div className="rounded-lg border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
             <p className="font-medium">Cannot run: Unreal Engine is running</p>
             <p className="mt-1 text-amber-200/90">
               {blockingProcesses.map((p) => p.displayName).join(', ')} — close it before running
-              Cook, Package, or Build.
+              Cook, Package, Archive, or Build.
             </p>
           </div>
         )}
@@ -282,6 +352,14 @@ export function UProjectHelperPanel() {
             className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors"
           >
             Package
+          </button>
+          <button
+            type="button"
+            onClick={runArchive}
+            disabled={!canRun}
+            className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors"
+          >
+            Archive
           </button>
           <button
             type="button"

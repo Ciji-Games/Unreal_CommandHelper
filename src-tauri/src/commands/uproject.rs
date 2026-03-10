@@ -224,6 +224,109 @@ pub async fn run_package(
     result
 }
 
+/// Archive (ZipProjectUp): RunUAT.bat ZipProjectUp -nocompileeditor -project="dir" -install="output.zip" -nocompile -nocompileuat
+/// Creates a zip of the project source with minimal files (excludes Binaries, Intermediate, Saved, etc.).
+#[tauri::command]
+pub async fn run_archive(
+    project_path: String,
+    output_zip_path: String,
+    engine_path: String,
+    app: AppHandle,
+) -> Result<(), String> {
+    if monitor::has_blocking_processes("uproject".to_string())? {
+        return Err(
+            "Cannot archive: Unreal Engine is running. Close it first.".to_string(),
+        );
+    }
+
+    let uproj = Path::new(&project_path);
+    if !uproj.exists() || uproj.extension().map_or(true, |e| e != "uproject") {
+        return Err("Invalid or missing .uproject file".to_string());
+    }
+
+    // ZipProjectUp expects -project to be the directory containing the .uproject file
+    let project_dir = uproj
+        .parent()
+        .ok_or("Invalid project path")?
+        .to_path_buf();
+    let project_dir_str = project_dir
+        .to_str()
+        .ok_or("Invalid project directory path")?
+        .to_string();
+
+    let engine_root = editor_path_to_engine_root(&engine_path)
+        .ok_or("Could not resolve engine root from editor path")?;
+    let run_uat = engine_root
+        .join("Engine")
+        .join("Build")
+        .join("BatchFiles")
+        .join("RunUAT.bat");
+    if !run_uat.exists() {
+        return Err(format!("RunUAT.bat not found at {:?}", run_uat));
+    }
+
+    let batch_dir = run_uat.parent().ok_or("Invalid RunUAT path")?;
+    let cwd: String = batch_dir
+        .to_str()
+        .ok_or("Invalid BatchFiles path")?
+        .to_string();
+
+    let args = vec![
+        "ZipProjectUp".to_string(),
+        "-nocompileeditor".to_string(),
+        format!("-project=\"{}\"", project_dir_str),
+        format!("-install=\"{}\"", output_zip_path),
+        "-nocompile".to_string(),
+        "-nocompileuat".to_string(),
+    ];
+
+    stream_processor::emit_log(&app, "Running Archive (ZipProjectUp)...", Some("blue"));
+    stream_processor::emit_log(
+        &app,
+        &format!("Project: {} -> {}", project_dir_str, output_zip_path),
+        None,
+    );
+
+    let run_uat_str = run_uat.to_string_lossy().to_string();
+    let result = tokio::task::spawn_blocking({
+        let app = app.clone();
+        let run_uat_str = run_uat_str.clone();
+        let cwd = cwd.clone();
+        let args = args.clone();
+        move || -> Result<(), String> {
+            let mut cmd = build_cmd(&run_uat_str, &args, Some(&cwd));
+            cmd.stdout(std::process::Stdio::piped());
+            cmd.stderr(std::process::Stdio::piped());
+
+            let mut child = cmd.spawn().map_err(|e| e.to_string())?;
+            running_process::set_running_pid(child.id());
+            let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+            let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
+            let stdout_reader = std::io::BufReader::new(stdout);
+            let stderr_reader = std::io::BufReader::new(stderr);
+            process_streams(stdout_reader, stderr_reader, app.clone(), ToolMode::Generic);
+
+            let status = child.wait().map_err(|e| e.to_string())?;
+            running_process::clear_running_pid();
+            if status.success() {
+                stream_processor::emit_log(&app, "Archive completed successfully!", Some("green"));
+                Ok(())
+            } else {
+                stream_processor::emit_log(
+                    &app,
+                    &format!("Archive exited with code: {:?}", status.code()),
+                    Some("red"),
+                );
+                Err("Archive failed".to_string())
+            }
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    result
+}
+
 /// Build (Compile only): Build.bat {ProjectName}Editor Win64 Development -Project="path" -WaitMutex
 /// C++ only - returns Err if !is_cpp.
 #[tauri::command]

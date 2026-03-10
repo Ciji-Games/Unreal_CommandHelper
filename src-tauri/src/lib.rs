@@ -30,6 +30,7 @@ pub fn run() {
             commands::umap::run_build_lighting,
             commands::uproject::run_cook,
             commands::uproject::run_package,
+            commands::uproject::run_archive,
             commands::uproject::run_build,
             commands::plugin::list_plugins_for_project,
             commands::plugin::build_plugin,
