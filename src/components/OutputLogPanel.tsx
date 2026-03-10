@@ -10,7 +10,7 @@
  * - White: Default
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useLog } from '../contexts/LogContext';
@@ -55,10 +55,13 @@ function StopIcon({ className }: { className?: string }) {
   );
 }
 
+const SCROLL_THRESHOLD = 24;
+
 export function OutputLogPanel() {
   const { lines, appendLine, clearLog } = useLog();
-  const { running, percent, elapsedMs, finishProgress } = useProgress();
+  const { running, percent, elapsedMs, stepProgress, finishProgress, requestStop } = useProgress();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isAtBottomRef = useRef(true);
   const [stopping, setStopping] = useState(false);
 
   useEffect(() => {
@@ -71,17 +74,30 @@ export function OutputLogPanel() {
     };
   }, [appendLine]);
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    isAtBottomRef.current = distanceFromBottom <= SCROLL_THRESHOLD;
+  };
+
+  // Only auto-scroll when user is at bottom; otherwise let them read history
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (el && isAtBottomRef.current) {
+      el.scrollTop = el.scrollHeight;
+    }
   }, [lines]);
 
   const handleClear = () => {
+    isAtBottomRef.current = true;
     clearLog();
   };
 
   const handleStop = async () => {
     if (!running || stopping) return;
     setStopping(true);
+    requestStop();
     try {
       await invoke('stop_running_process');
       finishProgress();
@@ -107,6 +123,7 @@ export function OutputLogPanel() {
       </div>
       <div
         ref={scrollRef}
+        onScroll={handleScroll}
         className="flex-1 min-h-0 overflow-y-auto rounded bg-zinc-900 p-3 font-mono text-sm leading-relaxed"
       >
         {lines.length === 0 ? (
@@ -123,28 +140,85 @@ export function OutputLogPanel() {
         )}
       </div>
       {running && (
-        <div className="flex items-center gap-3 shrink-0 -mt-0.5">
-          <div className="flex-1 h-3.5 rounded-full bg-zinc-800 overflow-hidden">
-            <div
-              className="h-full bg-amber-500 transition-all duration-300 relative overflow-hidden progress-bar-fill"
-              style={{
-                width: `${percent}%`,
-              }}
-            />
-          </div>
-          <span className="text-sm text-zinc-400 tabular-nums min-w-[3rem]">
-            {formatElapsed(elapsedMs)}
-          </span>
-          <button
-            type="button"
-            onClick={handleStop}
-            disabled={stopping}
-            className="rounded p-1.5 text-red-400 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            title="Stop process"
-            aria-label="Stop process"
-          >
-            <StopIcon className="w-4 h-4" />
-          </button>
+        <div className="flex flex-col gap-2 shrink-0 -mt-0.5">
+          {stepProgress && stepProgress.totalSteps > 1 ? (
+            <div className="flex items-center gap-2">
+              <div className="flex gap-2 flex-wrap flex-1 min-w-0">
+                {stepProgress.stepPercents.map((pct, i) => (
+                  <div
+                    key={i}
+                    className={`flex-1 min-w-[4rem] flex flex-col gap-0.5 ${
+                      i === stepProgress.currentStep
+                        ? 'ring-1 ring-amber-500/60 rounded px-2 py-1 -m-px'
+                        : ''
+                    }`}
+                  >
+                    <span
+                      className={`text-xs truncate block ${
+                        i === stepProgress.currentStep
+                          ? 'text-amber-200 font-medium'
+                          : 'text-zinc-500'
+                      }`}
+                      title={stepProgress.stepLabels[i]}
+                    >
+                      {stepProgress.stepLabels[i] ?? `Step ${i + 1}`}
+                    </span>
+                    <div className="h-2.5 rounded-full bg-zinc-800 overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-300 ${
+                          i < stepProgress.currentStep
+                            ? 'bg-emerald-500'
+                            : i === stepProgress.currentStep
+                              ? 'bg-amber-500 progress-bar-fill'
+                              : 'bg-zinc-700'
+                        }`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <span className="text-sm text-zinc-400 tabular-nums shrink-0">
+                {formatElapsed(elapsedMs)}
+              </span>
+              <button
+                type="button"
+                onClick={handleStop}
+                disabled={stopping}
+                className="rounded p-1.5 text-red-400 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
+                title="Stop process"
+                aria-label="Stop process"
+              >
+                <StopIcon className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-3.5 rounded-full bg-zinc-800 overflow-hidden">
+                <div
+                  className="h-full bg-amber-500 transition-all duration-300 relative overflow-hidden progress-bar-fill"
+                  style={{
+                    width: `${percent}%`,
+                  }}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-zinc-400 tabular-nums min-w-[3rem]">
+                  {formatElapsed(elapsedMs)}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleStop}
+                  disabled={stopping}
+                  className="rounded p-1.5 text-red-400 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Stop process"
+                  aria-label="Stop process"
+                >
+                  <StopIcon className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

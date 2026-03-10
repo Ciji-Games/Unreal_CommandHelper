@@ -76,7 +76,7 @@ export function SchedulerTab() {
   const { projects } = useProjects();
   const { settings } = useSettings();
   const { clearLog } = useLog();
-  const { startProgress, finishProgress } = useProgress();
+  const { startProgressForScheduler, setCurrentStep, finishProgress, stopRequestedRef } = useProgress();
   const umapMonitor = useProcessMonitor('umap');
   const uprojectMonitor = useProcessMonitor('uproject');
   const regenerateMonitor = useProcessMonitor('regenerate');
@@ -209,10 +209,15 @@ export function SchedulerTab() {
 
     setRunning(true);
     clearLog();
-    startProgress();
+    startProgressForScheduler(
+      job.steps.length,
+      job.steps.map((s) => getStepLabel(s.id))
+    );
 
     let failed = false;
     for (let i = 0; i < job.steps.length && !failed; i++) {
+      if (stopRequestedRef.current) break;
+      setCurrentStep(i);
       const step = job.steps[i];
       const params = step.params;
       const projectPath = params.project as string;
@@ -315,7 +320,7 @@ export function SchedulerTab() {
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
         console.error(`Step ${i + 1} (${getStepLabel(step.id)}) failed:`, errMsg);
-        if (shouldStopOnFailure) {
+        if (stopRequestedRef.current || shouldStopOnFailure) {
           failed = true;
         }
       }
@@ -342,7 +347,11 @@ export function SchedulerTab() {
         )}
       </div>
 
-      <div className="flex gap-4 flex-[6_1_0] min-h-0 overflow-hidden">
+      <div
+        className={`flex gap-4 min-h-0 overflow-hidden ${
+          showOutputLog ? 'flex-[4_1_0]' : 'flex-[6_1_0]'
+        }`}
+      >
         {/* Left: Job list */}
         <div className="w-64 shrink-0 flex flex-col">
           <nav className="flex flex-col gap-1 rounded-lg overflow-hidden bg-zinc-900/80 border border-zinc-800">
@@ -386,33 +395,6 @@ export function SchedulerTab() {
               </button>
             </div>
           </nav>
-
-          {selectedJob && !editingJob && (
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => handleEdit(selectedJob)}
-                className="rounded px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white text-sm"
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => handleRun(selectedJob)}
-                disabled={selectedJob.steps.length === 0 || hasBlockingProcesses}
-                className="rounded px-3 py-1.5 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-sm"
-              >
-                Run
-              </button>
-              <button
-                type="button"
-                onClick={() => removeJob(selectedJob.id).then(() => setSelectedJobId(null))}
-                className="rounded px-3 py-1.5 bg-zinc-700 hover:bg-red-600/80 text-white text-sm"
-              >
-                Delete
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Right: Job editor */}
@@ -549,11 +531,35 @@ export function SchedulerTab() {
             </ToolGroup>
           ) : selectedJob ? (
             <div className="text-zinc-400">
-              <p className="mb-2">{selectedJob.name}</p>
-              <p className="text-sm">
+              <p className="mb-2 text-white font-medium">{selectedJob.name}</p>
+              <p className="text-sm mb-4">
                 {selectedJob.steps.length} steps:{' '}
                 {selectedJob.steps.map((s) => getStepLabel(s.id)).join(' → ')}
               </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleEdit(selectedJob)}
+                  className="rounded px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white text-sm"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRun(selectedJob)}
+                  disabled={selectedJob.steps.length === 0 || hasBlockingProcesses}
+                  className="rounded px-3 py-1.5 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-sm"
+                >
+                  Run
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeJob(selectedJob.id).then(() => setSelectedJobId(null))}
+                  className="rounded px-3 py-1.5 bg-zinc-700 hover:bg-red-600/80 text-white text-sm"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           ) : (
             <p className="text-zinc-500">Select or create a job to get started.</p>
@@ -564,7 +570,7 @@ export function SchedulerTab() {
       {/* Output Log - hidden by default, shown when job runs or user toggles */}
       <div
         className={`flex flex-col min-w-0 transition-all ${
-          showOutputLog ? 'flex-[4_1_0] min-h-0' : 'shrink-0'
+          showOutputLog ? 'flex-[6_1_0] min-h-0' : 'shrink-0'
         }`}
       >
         <button
