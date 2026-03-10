@@ -7,8 +7,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../../hooks/useProjects';
-import type { ProjectInfo } from '../../types';
-import type { EngineEntry } from '../../types';
+import type { ProjectInfo, EngineEntry } from '../../types';
+import { getProjectDisplayLabel } from '../../utils/project';
 
 interface PluginInfo {
   name: string;
@@ -123,7 +123,7 @@ export function StepParamPanelPlugin({ value, onChange }: StepParamPanelPluginPr
           </option>
           {projectsWithPlugins.map((p) => (
             <option key={p.projectPath} value={p.projectPath}>
-              {p.projectName}
+              {getProjectDisplayLabel(p)}
             </option>
           ))}
           <option value="__browse__">Browse...</option>

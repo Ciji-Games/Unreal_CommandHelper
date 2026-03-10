@@ -14,6 +14,7 @@ import { useProgress } from '../contexts/ProgressContext';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
 import { ToolGroup } from './ToolGroup';
 import type { ProjectInfo } from '../types';
+import { getProjectDisplayLabel } from '../utils/project';
 
 const UMAP_PROCESS_GROUP = 'umap';
 
@@ -167,7 +168,7 @@ export function UmapHelperPanel() {
             </option>
             {projects.map((p) => (
               <option key={p.projectPath} value={p.projectPath}>
-                {p.projectName}
+                {getProjectDisplayLabel(p)}
               </option>
             ))}
             <option value="__browse__">Browse new project...</option>

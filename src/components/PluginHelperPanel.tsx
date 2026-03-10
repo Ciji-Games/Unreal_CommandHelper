@@ -12,6 +12,7 @@ import { useProgress } from '../contexts/ProgressContext';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
 import { ToolGroup } from './ToolGroup';
 import type { ProjectInfo } from '../types';
+import { getProjectDisplayLabel } from '../utils/project';
 import type { EngineEntry } from '../types';
 
 const PLUGIN_PROCESS_GROUP = 'umap';
@@ -174,7 +175,7 @@ export function PluginHelperPanel() {
             </option>
             {projectsWithPlugins.map((p) => (
               <option key={p.projectPath} value={p.projectPath}>
-                {p.projectName}
+                {getProjectDisplayLabel(p)}
               </option>
             ))}
             <option value="__browse__">Browse new project...</option>

@@ -7,6 +7,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../../hooks/useProjects';
 import type { ProjectInfo } from '../../types';
+import { getProjectDisplayLabel } from '../../utils/project';
 
 interface StepParamPanelMapProps {
   value: Record<string, unknown>;
@@ -56,7 +57,7 @@ export function StepParamPanelMap({ value, onChange }: StepParamPanelMapProps) {
           <option value="">{projects.length === 0 ? 'No projects' : 'Select project'}</option>
           {projects.map((p) => (
             <option key={p.projectPath} value={p.projectPath}>
-              {p.projectName}
+              {getProjectDisplayLabel(p)}
             </option>
           ))}
           <option value="__browse__">Browse...</option>

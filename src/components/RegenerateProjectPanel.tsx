@@ -8,6 +8,7 @@ import { ToolGroup } from './ToolGroup';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../hooks/useProjects';
+import { getProjectDisplayLabel } from '../utils/project';
 import { useSettings } from '../hooks/useSettings';
 import { useLog } from '../contexts/LogContext';
 import { useProgress } from '../contexts/ProgressContext';
@@ -131,7 +132,7 @@ export function RegenerateProjectPanel() {
             </option>
             {cppProjects.map((p) => (
               <option key={p.projectPath} value={p.projectPath}>
-                {p.projectName}
+                {getProjectDisplayLabel(p)}
               </option>
             ))}
             <option value="__browse__">Browse new project...</option>

@@ -30,6 +30,24 @@ const colorClasses: Record<string, string> = {
   gray: 'text-zinc-500',
 };
 
+type LogType = 'message' | 'success' | 'warning' | 'error';
+
+const colorToLogType: Record<string, LogType> = {
+  green: 'success',
+  red: 'error',
+  orange: 'warning',
+  blue: 'message',
+  white: 'message',
+  gray: 'message',
+};
+
+const LOG_TYPE_LABELS: { id: LogType; label: string }[] = [
+  { id: 'message', label: 'Message' },
+  { id: 'success', label: 'Success' },
+  { id: 'warning', label: 'Warning' },
+  { id: 'error', label: 'Error' },
+];
+
 function formatElapsed(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
   const hours = Math.floor(totalSeconds / 3600);
@@ -63,6 +81,17 @@ export function OutputLogPanel() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const [stopping, setStopping] = useState(false);
+  const [filters, setFilters] = useState<Record<LogType, boolean>>({
+    message: true,
+    success: true,
+    warning: true,
+    error: true,
+  });
+
+  const filteredLines = lines.filter((entry) => {
+    const type = colorToLogType[entry.color ?? 'white'] ?? 'message';
+    return filters[type];
+  });
 
   useEffect(() => {
     const unlisten = listen<LogEvent>('log-output', (event) => {
@@ -109,27 +138,53 @@ export function OutputLogPanel() {
     }
   };
 
+  const toggleFilter = (type: LogType) => {
+    setFilters((prev) => ({ ...prev, [type]: !prev[type] }));
+  };
+
   return (
     <div className="flex flex-col gap-2 min-h-0 flex-1">
-      <div className="flex items-center justify-between shrink-0">
-        <h3 className="font-semibold text-white">Output Log</h3>
-        <button
-          type="button"
-          onClick={handleClear}
-          className="rounded px-3 py-1 text-sm bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
-        >
-          Clear
-        </button>
+      <div className="flex flex-col gap-2 shrink-0">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-white">Output Log</h3>
+          <button
+            type="button"
+            onClick={handleClear}
+            className="rounded px-3 py-1 text-sm bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+          >
+            Clear
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {LOG_TYPE_LABELS.map(({ id, label }) => (
+            <label
+              key={id}
+              className="flex items-center gap-1.5 cursor-pointer text-sm text-zinc-400 hover:text-zinc-300 transition-colors"
+            >
+              <input
+                type="checkbox"
+                checked={filters[id]}
+                onChange={() => toggleFilter(id)}
+                className="rounded border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500/50 focus:ring-offset-0"
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
       </div>
       <div
         ref={scrollRef}
         onScroll={handleScroll}
         className="flex-1 min-h-0 overflow-y-auto rounded bg-zinc-900 p-3 font-mono text-sm leading-relaxed"
       >
-        {lines.length === 0 ? (
-          <p className="text-zinc-500 italic">Log output will appear here...</p>
+        {filteredLines.length === 0 ? (
+          <p className="text-zinc-500 italic">
+            {lines.length === 0
+              ? 'Log output will appear here...'
+              : 'No messages match the current filters.'}
+          </p>
         ) : (
-          lines.map((entry, i) => (
+          filteredLines.map((entry, i) => (
             <div
               key={i}
               className={colorClasses[entry.color ?? 'white'] ?? 'text-zinc-200'}

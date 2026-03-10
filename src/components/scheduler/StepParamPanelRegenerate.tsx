@@ -8,6 +8,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../../hooks/useProjects';
 import type { ProjectInfo } from '../../types';
+import { getProjectDisplayLabel } from '../../utils/project';
 
 interface StepParamPanelRegenerateProps {
   value: Record<string, unknown>;
@@ -61,7 +62,7 @@ export function StepParamPanelRegenerate({ value, onChange }: StepParamPanelRege
           </option>
           {cppProjects.map((p) => (
             <option key={p.projectPath} value={p.projectPath}>
-              {p.projectName}
+              {getProjectDisplayLabel(p)}
             </option>
           ))}
           <option value="__browse__">Browse...</option>

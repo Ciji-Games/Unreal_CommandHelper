@@ -12,6 +12,7 @@ import { useProgress } from '../contexts/ProgressContext';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
 import { ToolGroup } from './ToolGroup';
 import type { ProjectInfo } from '../types';
+import { getProjectDisplayLabel } from '../utils/project';
 
 const UPROJECT_PROCESS_GROUP = 'uproject';
 const PLATFORMS = ['Win64', 'Linux', 'Mac'];
@@ -238,7 +239,7 @@ export function UProjectHelperPanel() {
             </option>
             {projects.map((p) => (
               <option key={p.projectPath} value={p.projectPath}>
-                {p.projectName}
+                {getProjectDisplayLabel(p)}
               </option>
             ))}
             <option value="__browse__">Browse new project...</option>
