@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { BaseLayout } from './components/BaseLayout';
 import { LauncherTab } from './components/LauncherTab';
 import { ToolBoxTab } from './components/ToolBoxTab';
+import { LinksTab } from './components/LinksTab';
 import { ShaderBoosterBackground } from './components/ShaderBoosterBackground';
 import { LogProvider } from './contexts/LogContext';
 import { ProgressProvider } from './contexts/ProgressContext';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'launcher' | 'toolbox'>('launcher');
+  const [activeTab, setActiveTab] = useState<'launcher' | 'toolbox' | 'links'>('launcher');
 
   return (
     <LogProvider>
@@ -39,6 +40,17 @@ function App() {
             >
               ToolBox
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('links')}
+              className={`px-4 py-2 rounded-t font-medium transition-colors ${
+                activeTab === 'links'
+                  ? 'bg-zinc-800 text-amber-500 border-b-2 border-amber-500'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+              }`}
+            >
+              Links
+            </button>
           </div>
 
           {activeTab === 'launcher' && <LauncherTab />}
@@ -47,6 +59,7 @@ function App() {
               <ToolBoxTab />
             </div>
           )}
+          {activeTab === 'links' && <LinksTab />}
         </div>
       </BaseLayout>
       </ProgressProvider>
