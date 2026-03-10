@@ -23,3 +23,37 @@ export interface ProcessStatus {
   isRunning: boolean;
   pids: number[];
 }
+
+/** Scheduler - step in a batch job */
+export interface ScheduledStep {
+  id: string; // Step type ID
+  params: Record<string, unknown>; // Step-specific params, matching existing tool panel fields
+}
+
+/** Scheduler - named batch job */
+export interface ScheduledJob {
+  id: string; // UUID
+  name: string;
+  steps: ScheduledStep[];
+}
+
+/** Schedulable step type */
+export interface SchedulableStepDef {
+  id: string;
+  label: string;
+  requiresMap: boolean;
+}
+
+/** Catalog of schedulable steps */
+export const SCHEDULABLE_STEPS: SchedulableStepDef[] = [
+  { id: 'delete_hlod', label: 'Delete HLOD', requiresMap: true },
+  { id: 'build_hlod', label: 'Build HLOD', requiresMap: true },
+  { id: 'build_minimap', label: 'Build MiniMap', requiresMap: true },
+  { id: 'build_lighting', label: 'Build Static Lighting', requiresMap: true },
+  { id: 'cook', label: 'Cook', requiresMap: false },
+  { id: 'package', label: 'Package', requiresMap: false },
+  { id: 'archive', label: 'Archive Project', requiresMap: false },
+  { id: 'build', label: 'Build', requiresMap: false },
+  { id: 'regenerate', label: 'Regenerate Project', requiresMap: false },
+  { id: 'build_plugin', label: 'Build Plugin', requiresMap: false },
+];

@@ -159,7 +159,7 @@ pub async fn run_package(
 
     let args = vec![
         "BuildCookRun".to_string(),
-        format!("-project=\"{}\"", project_path),
+        format!("-project={}", project_path),
         format!("-platform={}", platform),
         format!("-clientconfig={}", client_config),
         "-build".to_string(),
@@ -167,7 +167,7 @@ pub async fn run_package(
         "-stage".to_string(),
         "-pak".to_string(),
         "-archive".to_string(),
-        format!("-archivedirectory=\"{}\"", archive_directory),
+        format!("-archivedirectory={}", archive_directory),
     ];
 
     stream_processor::emit_log(
@@ -244,16 +244,6 @@ pub async fn run_archive(
         return Err("Invalid or missing .uproject file".to_string());
     }
 
-    // ZipProjectUp expects -project to be the directory containing the .uproject file
-    let project_dir = uproj
-        .parent()
-        .ok_or("Invalid project path")?
-        .to_path_buf();
-    let project_dir_str = project_dir
-        .to_str()
-        .ok_or("Invalid project directory path")?
-        .to_string();
-
     let engine_root = editor_path_to_engine_root(&engine_path)
         .ok_or("Could not resolve engine root from editor path")?;
     let run_uat = engine_root
@@ -274,8 +264,8 @@ pub async fn run_archive(
     let args = vec![
         "ZipProjectUp".to_string(),
         "-nocompileeditor".to_string(),
-        format!("-project=\"{}\"", project_dir_str),
-        format!("-install=\"{}\"", output_zip_path),
+        format!("-project={}", project_path),
+        format!("-install={}", output_zip_path),
         "-nocompile".to_string(),
         "-nocompileuat".to_string(),
     ];
@@ -283,7 +273,7 @@ pub async fn run_archive(
     stream_processor::emit_log(&app, "Running Archive (ZipProjectUp)...", Some("blue"));
     stream_processor::emit_log(
         &app,
-        &format!("Project: {} -> {}", project_dir_str, output_zip_path),
+        &format!("Project: {} -> {}", project_path, output_zip_path),
         None,
     );
 

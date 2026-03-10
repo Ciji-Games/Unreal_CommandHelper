@@ -6,6 +6,7 @@ export const STORE_PATH = 'ue-launcher-store.json';
 
 export const STORE_KEYS = {
   PROJECTS: 'projects',
+  SCHEDULED_JOBS: 'scheduledJobs',
   UNREAL_VERSION_SELECTOR_PATH: 'unrealVersionSelectorPath',
   AUTO_SWITCH_BOOSTER: 'autoSwitchBooster',
   PRIORITY_BOOSTER: 'priorityBooster',

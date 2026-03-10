@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { BaseLayout } from './components/BaseLayout';
 import { LauncherTab } from './components/LauncherTab';
 import { ToolBoxTab } from './components/ToolBoxTab';
+import { SchedulerTab } from './components/SchedulerTab';
 import { LinksTab } from './components/LinksTab';
 import { ShaderBoosterBackground } from './components/ShaderBoosterBackground';
 import { LogProvider } from './contexts/LogContext';
 import { ProgressProvider } from './contexts/ProgressContext';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'launcher' | 'toolbox' | 'links'>('launcher');
+  const [activeTab, setActiveTab] = useState<'launcher' | 'toolbox' | 'scheduler' | 'links'>('launcher');
 
   return (
     <LogProvider>
@@ -42,6 +43,17 @@ function App() {
             </button>
             <button
               type="button"
+              onClick={() => setActiveTab('scheduler')}
+              className={`px-4 py-2 rounded-t font-medium transition-colors ${
+                activeTab === 'scheduler'
+                  ? 'bg-zinc-800 text-amber-500 border-b-2 border-amber-500'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+              }`}
+            >
+              Scheduler
+            </button>
+            <button
+              type="button"
               onClick={() => setActiveTab('links')}
               className={`px-4 py-2 rounded-t font-medium transition-colors ${
                 activeTab === 'links'
@@ -57,6 +69,11 @@ function App() {
           {activeTab === 'toolbox' && (
             <div className="flex-1 min-h-0 flex flex-col">
               <ToolBoxTab />
+            </div>
+          )}
+          {activeTab === 'scheduler' && (
+            <div className="flex-1 min-h-0 flex flex-col">
+              <SchedulerTab />
             </div>
           )}
           {activeTab === 'links' && <LinksTab />}

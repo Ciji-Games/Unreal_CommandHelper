@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { open, save } from '@tauri-apps/plugin-dialog';
+import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../hooks/useProjects';
 import { useLog } from '../contexts/LogContext';
 import { useProgress } from '../contexts/ProgressContext';
@@ -26,27 +26,24 @@ export function UProjectHelperPanel() {
   const [selectedProjectPath, setSelectedProjectPath] = useState<string>('');
   const [platform, setPlatform] = useState('Win64');
   const [packageConfig, setPackageConfig] = useState('Development');
-  const [archiveDirectory, setArchiveDirectory] = useState<string>('');
-  const [archiveZipPath, setArchiveZipPath] = useState<string>('');
+  const [outputPath, setOutputPath] = useState<string>('');
   const [running, setRunning] = useState(false);
 
   const selectedProject = projects.find((p) => p.projectPath === selectedProjectPath);
 
-  // Default package output: {project_dir}/Saved/StagedBuilds; default archive zip: {project_dir}/{ProjectName}.zip
+  const projectName =
+    selectedProjectPath.split(/[/\\]/).pop()?.replace(/\.uproject$/, '') ?? 'Project';
+
   useEffect(() => {
     if (!selectedProjectPath) {
-      setArchiveDirectory('');
-      setArchiveZipPath('');
+      setOutputPath('');
       return;
     }
     const lastSlash = selectedProjectPath.lastIndexOf('/');
     const backslash = selectedProjectPath.lastIndexOf('\\');
     const sep = lastSlash > backslash ? lastSlash : backslash;
     const projectDir = sep >= 0 ? selectedProjectPath.slice(0, sep) : selectedProjectPath;
-    const projectName =
-      selectedProjectPath.split(/[/\\]/).pop()?.replace(/\.uproject$/, '') ?? 'Project';
-    setArchiveDirectory(`${projectDir}/Saved/StagedBuilds`);
-    setArchiveZipPath(`${projectDir}/${projectName}.zip`);
+    setOutputPath(`${projectDir}/Saved/StagedBuilds`);
   }, [selectedProjectPath]);
 
   const handleProjectChange = async (value: string) => {
@@ -73,25 +70,31 @@ export function UProjectHelperPanel() {
     }
   };
 
-  const handleBrowseArchiveDir = async () => {
+  const handleBrowseOutputPath = async () => {
     const path = await open({
       directory: true,
     });
     if (path && typeof path === 'string') {
-      setArchiveDirectory(path);
+      setOutputPath(path);
     }
   };
 
-  const handleBrowseArchiveZip = async () => {
-    const projectName =
-      selectedProjectPath.split(/[/\\]/).pop()?.replace(/\.uproject$/, '') ?? 'Project';
-    const path = await save({
-      filters: [{ name: 'Zip archive', extensions: ['zip'] }],
-      defaultPath: `${projectName}.zip`,
-    });
-    if (path && typeof path === 'string') {
-      setArchiveZipPath(path);
+  const getArchiveZipPath = () => {
+    const p = outputPath.trim();
+    if (!p) return '';
+    if (p.toLowerCase().endsWith('.zip')) return p;
+    const dir = p.replace(/[/\\]+$/, '');
+    return `${dir}/${projectName}.zip`;
+  };
+
+  const getPackageArchiveDir = () => {
+    const p = outputPath.trim();
+    if (!p) return '';
+    if (p.toLowerCase().endsWith('.zip')) {
+      const sep = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
+      return sep >= 0 ? p.slice(0, sep) : p;
     }
+    return p;
   };
 
   const runCook = async () => {
@@ -127,8 +130,9 @@ export function UProjectHelperPanel() {
       alert('Engine path not found for this project. Ensure the project uses an installed engine.');
       return;
     }
-    if (!archiveDirectory.trim()) {
-      alert('Please set the archive output directory.');
+    const pkgDir = getPackageArchiveDir();
+    if (!pkgDir) {
+      alert('Please set the output path.');
       return;
     }
     clearLog();
@@ -139,7 +143,7 @@ export function UProjectHelperPanel() {
         projectPath: selectedProject.projectPath,
         platform,
         clientConfig: packageConfig,
-        archiveDirectory: archiveDirectory.trim(),
+        archiveDirectory: pkgDir,
         enginePath,
       });
     } catch (e) {
@@ -159,8 +163,9 @@ export function UProjectHelperPanel() {
       alert('Engine path not found for this project. Ensure the project uses an installed engine.');
       return;
     }
-    if (!archiveZipPath.trim()) {
-      alert('Please set the archive output path (e.g. C:/path/to/ProjectName.zip).');
+    const zipPath = getArchiveZipPath();
+    if (!zipPath) {
+      alert('Please set the output path.');
       return;
     }
     clearLog();
@@ -169,7 +174,7 @@ export function UProjectHelperPanel() {
     try {
       await invoke('run_archive', {
         projectPath: selectedProject.projectPath,
-        outputZipPath: archiveZipPath.trim(),
+        outputZipPath: zipPath,
         enginePath,
       });
     } catch (e) {
@@ -274,43 +279,21 @@ export function UProjectHelperPanel() {
         </div>
 
         <div>
-          <label className="block text-sm text-zinc-300 mb-1">Package Output Directory</label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={archiveDirectory}
-              onChange={(e) => setArchiveDirectory(e.target.value)}
-              placeholder="{project}/Saved/StagedBuilds"
-              disabled={!selectedProjectPath}
-              className="flex-1 rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:opacity-50"
-            />
-            <button
-              type="button"
-              onClick={handleBrowseArchiveDir}
-              disabled={!selectedProjectPath}
-              className="rounded px-3 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white text-sm font-medium transition-colors"
-            >
-              Browse
-            </button>
-          </div>
-        </div>
-
-        <div>
           <label className="block text-sm text-zinc-300 mb-1">
-            Archive (Zip) — project source, minimal files
+            Output path (Package: directory, Archive: directory or .zip file)
           </label>
           <div className="flex gap-2">
             <input
               type="text"
-              value={archiveZipPath}
-              onChange={(e) => setArchiveZipPath(e.target.value)}
-              placeholder="{project}/ProjectName.zip"
+              value={outputPath}
+              onChange={(e) => setOutputPath(e.target.value)}
+              placeholder="{project}/Saved/StagedBuilds or path/ProjectName.zip"
               disabled={!selectedProjectPath}
               className="flex-1 rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:opacity-50"
             />
             <button
               type="button"
-              onClick={handleBrowseArchiveZip}
+              onClick={handleBrowseOutputPath}
               disabled={!selectedProjectPath}
               className="rounded px-3 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white text-sm font-medium transition-colors"
             >
