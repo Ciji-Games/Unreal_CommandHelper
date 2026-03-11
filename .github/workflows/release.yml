@@ -11,6 +11,8 @@ jobs:
     permissions:
       contents: write
     runs-on: windows-latest
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/src-tauri/target
     steps:
       - uses: actions/checkout@v4
 
@@ -35,4 +37,4 @@ jobs:
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
           prerelease: false
-          tauriScript: npm run tauri
+          tauriScript: npx tauri
