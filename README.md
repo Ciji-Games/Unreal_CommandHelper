@@ -4,9 +4,11 @@ Unreal Engine project launcher and toolbox for Windows. Launch projects, run com
 
 ## Screenshots
 
-| Launcher | Shader Booster | Batch Job | Map Helper |
-|----------|----------------|-----------|------------|
-| ![Launcher](public/assets/launcher.png) | ![Shader Booster](public/assets/shaderbooster.png) | ![Batch Job](public/assets/batchJob.png) | ![Map Helper](public/assets/MapHelper.png) |
+| Launcher | Shader Booster |
+|----------|----------------|
+| ![Launcher](public/assets/launcher.png) | ![Shader Booster](public/assets/shaderbooster.png) |
+| Batch Job | Map Helper |
+| ![Batch Job](public/assets/batchJob.png) | ![Map Helper](public/assets/MapHelper.png) |
 
 ## Features
 
