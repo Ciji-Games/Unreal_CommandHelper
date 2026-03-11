@@ -10,16 +10,16 @@ import { useProjects } from '../hooks/useProjects';
 import { useLog } from '../contexts/LogContext';
 import { useProgress } from '../contexts/ProgressContext';
 import { ToolGroup } from './ToolGroup';
+import { FileTree, type FileEntry } from './FileTree';
 import type { ProjectInfo } from '../types';
 import { getProjectDisplayLabel } from '../utils/project';
 
 const SMALL_FILE_THRESHOLD = 1 * 1024 * 1024; // 1MB - collapse below this
 const LARGE_FILE_THRESHOLD = 99 * 1024 * 1024; // 99MB - red warning
 
-interface FileEntry {
-  path: string;
-  size: number;
-}
+const TARGET_SIZE_MIN_MB = 100;
+const TARGET_SIZE_MAX_MB = 1800; // 1.8 GB
+const TARGET_SIZE_DEFAULT_MB = 200;
 
 interface ScanResult {
   gitRoot: string;
@@ -42,10 +42,21 @@ export function BatchCommitPanel() {
   const [commitName, setCommitName] = useState('');
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [selectedLargeFilesForLFS, setSelectedLargeFilesForLFS] = useState<Set<string>>(new Set());
-  const [smallFilesExpanded, setSmallFilesExpanded] = useState(false);
   const [running, setRunning] = useState(false);
+  const [targetSizeMb, setTargetSizeMb] = useState(TARGET_SIZE_DEFAULT_MB);
+  const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set([0]));
+  const [filePreviewExpanded, setFilePreviewExpanded] = useState(true);
 
   const selectedProject = projects.find((p) => p.projectPath === selectedProjectPath);
+
+  const toggleGroup = (i: number) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  };
 
   const handleProjectChange = async (value: string) => {
     if (value === '__browse__') {
@@ -83,11 +94,14 @@ export function BatchCommitPanel() {
     setRunning(true);
     startProgress();
     try {
+      const targetSizeBytes = targetSizeMb * 1024 * 1024;
       const result = await invoke<ScanResult>('scan_batch_commit', {
         projectPath,
+        targetSizeBytes,
       });
       setScanResult(result);
       setSelectedLargeFilesForLFS(new Set());
+      setExpandedGroups(new Set([0]));
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       alert(`Scan failed: ${msg}`);
@@ -144,11 +158,6 @@ export function BatchCommitPanel() {
   const largeFiles = scanResult?.largeFiles ?? [];
   const groupedCommits = scanResult?.groupedCommits ?? [];
 
-  const tinyFiles = smallFiles.filter((e) => e.size < SMALL_FILE_THRESHOLD);
-  const mediumFiles = smallFiles.filter(
-    (e) => e.size >= SMALL_FILE_THRESHOLD && e.size < LARGE_FILE_THRESHOLD
-  );
-
   const hasContent = smallFiles.length > 0 || largeFiles.length > 0;
 
   return (
@@ -177,6 +186,27 @@ export function BatchCommitPanel() {
         </div>
 
         <div>
+          <label className="block text-sm text-zinc-300 mb-1">
+            Group target size: {targetSizeMb} MB
+          </label>
+          <input
+            type="range"
+            min={TARGET_SIZE_MIN_MB}
+            max={TARGET_SIZE_MAX_MB}
+            step={50}
+            value={targetSizeMb}
+            onChange={(e) => {
+              setTargetSizeMb(Number(e.target.value));
+              setScanResult(null); // Clear stale groups; re-scan to apply new target
+            }}
+            className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-zinc-700 accent-amber-500"
+          />
+          <p className="mt-1 text-xs text-zinc-500">
+            Best-effort target per commit group (100 MB – 1.8 GB)
+          </p>
+        </div>
+
+        <div>
           <label className="block text-sm text-zinc-300 mb-1">Commit name</label>
           <input
             type="text"
@@ -201,113 +231,154 @@ export function BatchCommitPanel() {
 
         {scanResult && (
           <>
-            <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-zinc-200">File preview</h4>
-
-              {tinyFiles.length > 0 && (
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setSmallFilesExpanded(!smallFilesExpanded)}
-                    className="flex items-center gap-2 text-sm text-zinc-300 hover:text-white"
-                  >
-                    <span className="text-zinc-500">
-                      {smallFilesExpanded ? '▼' : '▶'}
-                    </span>
-                    {tinyFiles.length} small files
-                  </button>
-                  {smallFilesExpanded && (
-                    <ul className="mt-2 max-h-40 overflow-y-auto text-xs text-zinc-400 space-y-1 pl-4">
-                      {tinyFiles.map((e) => (
-                        <li key={e.path} className="truncate">
-                          {e.path} ({formatSize(e.size)})
-                        </li>
-                      ))}
-                    </ul>
+            <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setFilePreviewExpanded(!filePreviewExpanded)}
+                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-zinc-700/30 transition-colors"
+              >
+                <h4 className="text-sm font-semibold text-zinc-200">File preview</h4>
+                <span className="text-zinc-500">
+                  {filePreviewExpanded ? '▼' : '▶'}
+                </span>
+              </button>
+              {filePreviewExpanded && (
+                <div className="px-4 pb-4 pt-0 space-y-4 border-t border-zinc-700/60">
+                  {!hasContent ? (
+                    <p className="text-sm text-zinc-500 py-2">No uncommitted or unstaged files found.</p>
+                  ) : (
+                    <>
+                      {smallFiles.length > 0 && (
+                        <div>
+                          <p className="text-xs text-zinc-500 mb-2">
+                            Commitable files ({smallFiles.length}) — grouped by target size below
+                          </p>
+                          <FileTree
+                            entries={smallFiles}
+                            entryVariant={(e) =>
+                              e.size >= SMALL_FILE_THRESHOLD && e.size < LARGE_FILE_THRESHOLD
+                                ? 'warning'
+                                : 'default'
+                            }
+                            maxHeight="max-h-40"
+                            defaultExpandedDepth={1}
+                          />
+                        </div>
+                      )}
+                      {largeFiles.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-red-400 font-medium">
+                            Files ≥99MB — add to LFS to include in commit:
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedLargeFilesForLFS((prev) => {
+                                const next = new Set(prev);
+                                largeFiles.forEach((e) => next.add(e.path));
+                                return next;
+                              })
+                            }
+                            className="px-2 py-1 rounded text-xs font-medium bg-zinc-700 text-zinc-300 hover:bg-zinc-600"
+                          >
+                            Add all files to LFS
+                          </button>
+                          <ul className="space-y-1 max-h-28 overflow-y-auto">
+                            {largeFiles.map((e) => (
+                              <li
+                                key={e.path}
+                                className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-zinc-700/40"
+                              >
+                                <span className="text-red-400/90 truncate flex-1 text-sm" title={e.path}>
+                                  {e.path}
+                                </span>
+                                <span className="text-zinc-500 text-xs shrink-0">{formatSize(e.size)}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleLFS(e.path)}
+                                  className={`shrink-0 px-2 py-0.5 rounded text-xs font-medium ${
+                                    selectedLargeFilesForLFS.has(e.path)
+                                      ? 'bg-amber-600 text-white'
+                                      : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
+                                  }`}
+                                >
+                                  {selectedLargeFilesForLFS.has(e.path) ? 'Added to LFS' : 'Add to LFS'}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
-              )}
-
-              {mediumFiles.length > 0 && (
-                <div className="space-y-1">
-                  <p className="text-xs text-amber-400 font-medium">
-                    Files under 99MB (orange warning):
-                  </p>
-                  <ul className="max-h-32 overflow-y-auto text-xs space-y-1">
-                    {mediumFiles.map((e) => (
-                      <li
-                        key={e.path}
-                        className="flex items-center gap-2 py-0.5 border-l-2 border-amber-500/60 pl-2"
-                      >
-                        <span className="text-amber-400/90 truncate flex-1">{e.path}</span>
-                        <span className="text-zinc-500 shrink-0">{formatSize(e.size)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {largeFiles.length > 0 && (
-                <div className="space-y-1">
-                  <p className="text-xs text-red-400 font-medium">
-                    Files ≥99MB (red) — add to LFS to include in commit:
-                  </p>
-                  <ul className="max-h-32 overflow-y-auto text-xs space-y-1">
-                    {largeFiles.map((e) => (
-                      <li
-                        key={e.path}
-                        className="flex items-center gap-2 py-0.5 border-l-2 border-red-500/60 pl-2"
-                      >
-                        <span className="text-red-400/90 truncate flex-1">{e.path}</span>
-                        <span className="text-zinc-500 shrink-0">{formatSize(e.size)}</span>
-                        <button
-                          type="button"
-                          onClick={() => toggleLFS(e.path)}
-                          className={`shrink-0 px-2 py-0.5 rounded text-xs font-medium ${
-                            selectedLargeFilesForLFS.has(e.path)
-                              ? 'bg-amber-600 text-white'
-                              : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
-                          }`}
-                        >
-                          {selectedLargeFilesForLFS.has(e.path) ? 'Added to LFS' : 'Add to LFS'}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {!hasContent && (
-                <p className="text-sm text-zinc-500">No uncommitted or unstaged files found.</p>
               )}
             </div>
 
-            <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4 space-y-2">
-              <h4 className="text-sm font-semibold text-zinc-200">Commit preview</h4>
-              {groupedCommits.length === 0 && selectedLargeFilesForLFS.size === 0 ? (
-                <p className="text-sm text-zinc-500">No commits to create.</p>
-              ) : (
-                <ul className="space-y-1 text-sm">
-                  {groupedCommits.map((group, i) => {
-                    const totalSize = group.reduce((s, e) => s + e.size, 0);
-                    const extra =
-                      i === groupedCommits.length - 1 && selectedLargeFilesForLFS.size > 0
-                        ? ` + ${selectedLargeFilesForLFS.size} LFS file(s)`
-                        : '';
-                    return (
-                      <li key={i} className="text-zinc-300">
-                        {commitName || 'name'}_{i + 1} — {group.length} files, {formatSize(totalSize)}
-                        {extra}
-                      </li>
-                    );
-                  })}
-                  {groupedCommits.length === 0 && selectedLargeFilesForLFS.size > 0 && (
-                    <li className="text-zinc-300">
-                      {commitName || 'name'}_1 — {selectedLargeFilesForLFS.size} LFS file(s)
-                    </li>
-                  )}
-                </ul>
-              )}
+            <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 overflow-hidden">
+              <div className="px-4 py-3 border-b border-zinc-700">
+                <h4 className="text-sm font-semibold text-zinc-200">Commit preview</h4>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {groupedCommits.length} group(s) · Click to expand and browse files
+                </p>
+              </div>
+              <div className="divide-y divide-zinc-700/80">
+                {groupedCommits.length === 0 && selectedLargeFilesForLFS.size === 0 ? (
+                  <div className="p-4">
+                    <p className="text-sm text-zinc-500">No commits to create.</p>
+                  </div>
+                ) : (
+                  <>
+                    {groupedCommits.map((group, i) => {
+                      const totalSize = group.reduce((s, e) => s + e.size, 0);
+                      const isExpanded = expandedGroups.has(i);
+                      const extra =
+                        i === groupedCommits.length - 1 && selectedLargeFilesForLFS.size > 0
+                          ? ` + ${selectedLargeFilesForLFS.size} LFS`
+                          : '';
+                      return (
+                        <div key={i} className="bg-zinc-800/30">
+                          <button
+                            type="button"
+                            onClick={() => toggleGroup(i)}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-zinc-700/40 transition-colors"
+                          >
+                            <span className="text-zinc-500 shrink-0">
+                              {isExpanded ? '▼' : '▶'}
+                            </span>
+                            <span className="font-medium text-amber-400/95">
+                              {commitName || 'name'}_{i + 1}
+                            </span>
+                            <span className="text-zinc-500 text-sm">
+                              {group.length} files · {formatSize(totalSize)}
+                              {extra}
+                            </span>
+                          </button>
+                          {isExpanded && (
+                            <div className="px-4 pb-3 pt-0 border-t border-zinc-700/60">
+                              <FileTree
+                                entries={group}
+                                maxHeight="max-h-56"
+                                defaultExpandedDepth={2}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {groupedCommits.length === 0 && selectedLargeFilesForLFS.size > 0 && (
+                      <div className="px-4 py-3">
+                        <span className="font-medium text-amber-400/95">
+                          {commitName || 'name'}_1
+                        </span>
+                        <span className="text-zinc-500 text-sm ml-2">
+                          {selectedLargeFilesForLFS.size} LFS file(s)
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
 
             <button

@@ -10,7 +10,7 @@ use crate::stream_processor;
 use crate::utils::build_cmd;
 
 const MIN_FILE_SIZE: u64 = 103_809_024; // 99MB - exclude from commit, show red warning
-const MAX_COMMIT_SIZE: u64 = 209_715_200; // 200MB - group threshold
+const DEFAULT_TARGET_SIZE: u64 = 209_715_200; // 200MB - default group target
 const LFS_FILTER: &str = "filter=lfs diff=lfs merge=lfs -text";
 
 fn resolve_project_dir(project_path: &str) -> PathBuf {
@@ -67,8 +67,9 @@ pub struct ScanResult {
 }
 
 /// Scan uncommitted files and return grouped result for preview.
+/// `target_size_bytes`: best-effort target size per commit group (100MB–1.8GB).
 #[tauri::command]
-pub fn scan_batch_commit(project_path: String) -> Result<ScanResult, String> {
+pub fn scan_batch_commit(project_path: String, target_size_bytes: Option<u64>) -> Result<ScanResult, String> {
     let project_dir = resolve_project_dir(&project_path);
     let git_root = find_git_root(&project_dir)?;
 
@@ -106,13 +107,17 @@ pub fn scan_batch_commit(project_path: String) -> Result<ScanResult, String> {
         }
     }
 
-    // Group commitable files by max 200MB
+    // Group commitable files by target size (best-effort near target)
+    let target = target_size_bytes.unwrap_or(DEFAULT_TARGET_SIZE).clamp(
+        100 * 1024 * 1024,      // 100 MB min
+        1800 * 1024 * 1024,     // 1.8 GB max
+    );
     let mut grouped_commits: Vec<Vec<FileEntry>> = Vec::new();
     let mut current_group: Vec<FileEntry> = Vec::new();
     let mut current_size: u64 = 0;
 
     for entry in commitable {
-        if current_size + entry.size >= MAX_COMMIT_SIZE && !current_group.is_empty() {
+        if current_size + entry.size >= target && !current_group.is_empty() {
             grouped_commits.push(std::mem::take(&mut current_group));
             current_size = 0;
         }
