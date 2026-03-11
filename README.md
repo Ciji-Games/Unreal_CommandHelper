@@ -1,73 +1,50 @@
-# React + TypeScript + Vite
+# UE Launcher
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Unreal Engine project launcher and toolbox for Windows. Launch projects, run common workflows, and schedule batch jobs.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Launcher**: Browse installed Unreal Engine versions and manage your projects (.uproject)
+- **ToolBox**: Shader Booster, Regenerate Project, Batch Commit, UMap Helper, Plugin Helper, UProject Helper
+- **Scheduler**: Create named batch jobs (sequences of tools) and run them in order
+- **Links**: Quick links and resources
 
-## React Compiler
+## Requirements
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Windows 11** (64-bit)
 
-## Expanding the ESLint configuration
+No other prerequisites. The app runs standalone on Windows 11 (WebView2 is pre-installed).
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+**Optional** (for specific features):
+- **Unreal Engine** — Launcher, Regenerate, Cook, Package, Build Lighting, UMap, Plugin build
+- **Git** — Batch Commit
+- **Git LFS** — Batch Commit (large files)
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Download
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+1. Go to the [Releases](https://github.com/cguillaume44/Unreal_CommandHelper/releases) page
+2. Download the latest `.msi` installer (or `-setup.exe` if available)
+3. Run the installer
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Installation
+
+Run the downloaded installer. The app will be installed to your chosen location. No additional prerequisites needed on Windows 11.
+
+## Build from Source
+
+For developers who want to build from source:
+
+**Prerequisites**: Node.js (LTS), Rust, npm
+
+```bash
+git clone https://github.com/cguillaume44/Unreal_CommandHelper.git
+cd Unreal_CommandHelper
+npm install
+npm run tauri build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Build output: `Build/release/bundle/msi/` (or `target/release/bundle/` depending on CARGO_TARGET_DIR).
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## License
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+MIT
