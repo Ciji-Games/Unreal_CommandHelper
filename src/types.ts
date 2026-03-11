@@ -44,6 +44,14 @@ export interface SchedulableStepDef {
   requiresMap: boolean;
 }
 
+/** Batch commit scan result */
+export interface BatchCommitScanResult {
+  gitRoot: string;
+  smallFiles: { path: string; size: number }[];
+  groupedCommits: { path: string; size: number }[][];
+  largeFiles: { path: string; size: number }[];
+}
+
 /** Catalog of schedulable steps */
 export const SCHEDULABLE_STEPS: SchedulableStepDef[] = [
   { id: 'delete_hlod', label: 'Delete HLOD', requiresMap: true },

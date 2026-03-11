@@ -13,6 +13,9 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            commands::batch_commit::scan_batch_commit,
+            commands::batch_commit::add_to_lfs,
+            commands::batch_commit::batch_commit,
             commands::registry::get_unreal_version_selector_path,
             commands::registry::get_installed_engine_paths,
             commands::projects::analyse_uproject,

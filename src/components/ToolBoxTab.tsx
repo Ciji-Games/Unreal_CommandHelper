@@ -9,11 +9,13 @@ import { UmapHelperPanel } from './UmapHelperPanel';
 import { ShaderBoosterPanel } from './ShaderBoosterPanel';
 import { PluginHelperPanel } from './PluginHelperPanel';
 import { UProjectHelperPanel } from './UProjectHelperPanel';
+import { BatchCommitPanel } from './BatchCommitPanel';
 import { OutputLogPanel } from './OutputLogPanel';
 
 const TOOLS = [
   { id: 'shader', label: 'Shader Booster', panel: ShaderBoosterPanel },
   { id: 'regenerate', label: 'Regenerate Project', panel: RegenerateProjectPanel },
+  { id: 'batchcommit', label: 'Batch Commit', panel: BatchCommitPanel },
   { id: 'umap', label: 'UMap Helper', panel: UmapHelperPanel },
   { id: 'plugin', label: 'Plugin Helper', panel: PluginHelperPanel },
   { id: 'uproject', label: 'UProject Helper', panel: UProjectHelperPanel },

@@ -1,5 +1,6 @@
 //! Tauri commands for UE Launcher
 
+pub mod batch_commit;
 pub mod monitor;
 pub mod plugin;
 pub mod process;
