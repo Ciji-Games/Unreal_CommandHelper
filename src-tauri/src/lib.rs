@@ -15,6 +15,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::batch_commit::scan_batch_commit,
             commands::batch_commit::add_to_lfs,
+            commands::batch_commit::remove_from_lfs,
             commands::batch_commit::batch_commit,
             commands::registry::get_unreal_version_selector_path,
             commands::registry::get_installed_engine_paths,

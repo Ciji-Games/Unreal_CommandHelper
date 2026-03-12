@@ -3,35 +3,88 @@
  * Translates batchcommit.bat and checkLFS.bat.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../hooks/useProjects';
 import { useLog } from '../contexts/LogContext';
 import { useProgress } from '../contexts/ProgressContext';
 import { ToolGroup } from './ToolGroup';
-import { FileTree, type FileEntry } from './FileTree';
 import type { ProjectInfo } from '../types';
 import { getProjectDisplayLabel } from '../utils/project';
-
-const SMALL_FILE_THRESHOLD = 1 * 1024 * 1024; // 1MB - collapse below this
-const LARGE_FILE_THRESHOLD = 99 * 1024 * 1024; // 99MB - red warning
 
 const TARGET_SIZE_MIN_MB = 100;
 const TARGET_SIZE_MAX_MB = 1800; // 1.8 GB
 const TARGET_SIZE_DEFAULT_MB = 200;
 
+interface FileEntry {
+  path: string;
+  size: number;
+}
+
+interface LargeFileEntry {
+  path: string;
+  size: number;
+  inLfs: boolean;
+  commitMessage?: string;
+}
+
 interface ScanResult {
   gitRoot: string;
   smallFiles: FileEntry[];
   groupedCommits: FileEntry[][];
-  largeFiles: FileEntry[];
+  largeFiles: LargeFileEntry[];
 }
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const ChevronRight = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-zinc-500">
+    <path d="M9 18l6-6-6-6" />
+  </svg>
+);
+const ChevronDown = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-zinc-500">
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+);
+
+/** Distribute LFS entries across commit groups to stay within target size. */
+function distributeLfsByTargetSize(
+  baseGroups: FileEntry[][],
+  lfsEntries: FileEntry[],
+  targetSizeBytes: number
+): FileEntry[][] {
+  const result: FileEntry[][] = baseGroups.map((g) => [...g]);
+  if (lfsEntries.length === 0) return result;
+
+  let lastIndex = result.length - 1;
+  let currentSize =
+    lastIndex >= 0 ? result[lastIndex].reduce((s, e) => s + e.size, 0) : 0;
+
+  for (const entry of lfsEntries) {
+    const wouldExceed = currentSize + entry.size > targetSizeBytes;
+    const hasContent = lastIndex >= 0 && result[lastIndex].length > 0;
+    if (wouldExceed && hasContent) {
+      result.push([]);
+      lastIndex = result.length - 1;
+      currentSize = 0;
+    }
+    if (lastIndex < 0) {
+      result.push([entry]);
+      lastIndex = 0;
+    } else {
+      result[lastIndex].push(entry);
+    }
+    currentSize += entry.size;
+  }
+
+  return result;
 }
 
 export function BatchCommitPanel() {
@@ -41,11 +94,11 @@ export function BatchCommitPanel() {
   const [selectedProjectPath, setSelectedProjectPath] = useState<string>('');
   const [commitName, setCommitName] = useState('');
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
-  const [selectedLargeFilesForLFS, setSelectedLargeFilesForLFS] = useState<Set<string>>(new Set());
+  const [addedToLfsSet, setAddedToLfsSet] = useState<Set<string>>(new Set());
+  const [removedFromLfsSet, setRemovedFromLfsSet] = useState<Set<string>>(new Set());
   const [running, setRunning] = useState(false);
   const [targetSizeMb, setTargetSizeMb] = useState(TARGET_SIZE_DEFAULT_MB);
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set([0]));
-  const [filePreviewExpanded, setFilePreviewExpanded] = useState(true);
 
   const selectedProject = projects.find((p) => p.projectPath === selectedProjectPath);
 
@@ -100,8 +153,9 @@ export function BatchCommitPanel() {
         targetSizeBytes,
       });
       setScanResult(result);
-      setSelectedLargeFilesForLFS(new Set());
-      setExpandedGroups(new Set([0]));
+      setAddedToLfsSet(new Set());
+      setRemovedFromLfsSet(new Set());
+      setExpandedGroups(new Set());
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       alert(`Scan failed: ${msg}`);
@@ -111,13 +165,116 @@ export function BatchCommitPanel() {
     }
   };
 
-  const toggleLFS = (path: string) => {
-    setSelectedLargeFilesForLFS((prev) => {
-      const next = new Set(prev);
-      if (next.has(path)) next.delete(path);
-      else next.add(path);
-      return next;
+  useEffect(() => {
+    const unlistenComplete = listen('batch-commit-complete', async () => {
+      setRunning(false);
+      finishProgress();
+      if (selectedProjectPath && selectedProjectPath !== '__browse__' && scanResult) {
+        try {
+          const projectPath = selectedProject?.projectPath ?? selectedProjectPath;
+          const targetSizeBytes = targetSizeMb * 1024 * 1024;
+          const result = await invoke<ScanResult>('scan_batch_commit', {
+            projectPath,
+            targetSizeBytes,
+          });
+          setScanResult(result);
+          setAddedToLfsSet(new Set());
+          setRemovedFromLfsSet(new Set());
+        } catch {
+          // Ignore re-scan errors
+        }
+      }
     });
+    const unlistenError = listen<string>('batch-commit-error', (event) => {
+      setRunning(false);
+      finishProgress();
+      alert(`Batch commit failed: ${event.payload}`);
+    });
+    return () => {
+      unlistenComplete.then((fn) => fn());
+      unlistenError.then((fn) => fn());
+    };
+  }, [finishProgress, selectedProjectPath, selectedProject, scanResult, targetSizeMb]);
+
+  const largeFiles = scanResult?.largeFiles ?? [];
+  const groupedCommits = scanResult?.groupedCommits ?? [];
+  const lfsFileEntries = largeFiles.filter((f) =>
+    (f.inLfs || addedToLfsSet.has(f.path)) && !removedFromLfsSet.has(f.path)
+  );
+  const uncommittedLfsFiles = lfsFileEntries.filter((f) => !f.commitMessage);
+  const targetSizeBytes = targetSizeMb * 1024 * 1024;
+  const displayGroups = distributeLfsByTargetSize(
+    groupedCommits,
+    uncommittedLfsFiles,
+    targetSizeBytes
+  );
+  const largeFileSectionIndex = displayGroups.length;
+
+  useEffect(() => {
+    if (largeFiles.length > 0 && largeFileSectionIndex >= 0) {
+      setExpandedGroups((prev) => {
+        if (prev.size === 0) return prev;
+        if (prev.has(largeFileSectionIndex)) return prev;
+        return new Set(prev).add(largeFileSectionIndex);
+      });
+    }
+  }, [largeFileSectionIndex, largeFiles.length]);
+
+  const effectiveInLfs = (entry: LargeFileEntry) =>
+    (entry.inLfs || addedToLfsSet.has(entry.path)) && !removedFromLfsSet.has(entry.path);
+
+  const handleAddToLfs = async (path: string) => {
+    const projectPath = selectedProject?.projectPath ?? selectedProjectPath;
+    if (!projectPath || projectPath === '__browse__') return;
+    try {
+      await invoke('add_to_lfs', { projectPath, paths: [path] });
+      setAddedToLfsSet((prev) => new Set(prev).add(path));
+      setRemovedFromLfsSet((prev) => {
+        const next = new Set(prev);
+        next.delete(path);
+        return next;
+      });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const handleAddAllToLfs = async () => {
+    const projectPath = selectedProject?.projectPath ?? selectedProjectPath;
+    if (!projectPath || projectPath === '__browse__') return;
+    const toAdd = largeFiles.filter((f) => !effectiveInLfs(f)).map((f) => f.path);
+    if (toAdd.length === 0) return;
+    try {
+      await invoke('add_to_lfs', { projectPath, paths: toAdd });
+      setAddedToLfsSet((prev) => new Set([...prev, ...toAdd]));
+      setRemovedFromLfsSet((prev) => {
+        const next = new Set(prev);
+        toAdd.forEach((p) => next.delete(p));
+        return next;
+      });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const handleRemoveFromLfs = async (path: string) => {
+    const projectPath = selectedProject?.projectPath ?? selectedProjectPath;
+    if (!projectPath || projectPath === '__browse__') return;
+    try {
+      const removed = await invoke<number>('remove_from_lfs', { projectPath, paths: [path] });
+      if (removed > 0) {
+        setRemovedFromLfsSet((prev) => new Set(prev).add(path));
+        setAddedToLfsSet((prev) => {
+          const next = new Set(prev);
+          next.delete(path);
+          return next;
+        });
+      } else {
+        alert('Could not remove from LFS. The file may use a glob pattern (e.g. *.uasset) in .gitattributes.');
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : String(e));
+    }
   };
 
   const handleBatchCommit = async () => {
@@ -130,35 +287,49 @@ export function BatchCommitPanel() {
 
     clearLog();
     setRunning(true);
-    startProgress();
+    startProgress({ showOutputLog: true });
+    const uncommittedLfs = largeFiles.filter((f) => effectiveInLfs(f) && !f.commitMessage);
+    const lfsPaths = uncommittedLfs.map((f) => f.path);
     try {
-      if (selectedLargeFilesForLFS.size > 0) {
+      if (lfsPaths.length > 0) {
         await invoke('add_to_lfs', {
           projectPath,
-          paths: Array.from(selectedLargeFilesForLFS),
+          paths: lfsPaths,
         });
       }
-      const groups = scanResult.groupedCommits.map((g) => g.map((e) => e.path));
+      const targetSizeBytes = targetSizeMb * 1024 * 1024;
+      const distributedGroups = distributeLfsByTargetSize(
+        scanResult.groupedCommits,
+        uncommittedLfs,
+        targetSizeBytes
+      );
+      const groups = distributedGroups.map((g) => g.map((e) => e.path));
       await invoke('batch_commit', {
         projectPath,
         commitName: commitName.trim(),
         groups,
-        lfsPaths: Array.from(selectedLargeFilesForLFS),
+        lfsPaths,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       alert(`Batch commit failed: ${msg}`);
-    } finally {
       setRunning(false);
       finishProgress();
     }
+    // Note: On success, batch_commit runs in background; completion is handled by
+    // batch-commit-complete / batch-commit-error event listeners above.
   };
 
-  const smallFiles = scanResult?.smallFiles ?? [];
-  const largeFiles = scanResult?.largeFiles ?? [];
-  const groupedCommits = scanResult?.groupedCommits ?? [];
+  /** Which commit group index each LFS file will go into (for status display). */
+  const getLfsFileCommitIndex = (entry: LargeFileEntry): number | null => {
+    if (!effectiveInLfs(entry)) return null;
+    const idx = displayGroups.findIndex((g) => g.some((e) => e.path === entry.path));
+    return idx >= 0 ? idx : null;
+  };
 
-  const hasContent = smallFiles.length > 0 || largeFiles.length > 0;
+  const hasCommits = displayGroups.length > 0;
+  const hasContent =
+    groupedCommits.length > 0 || largeFiles.length > 0;
 
   return (
     <ToolGroup
@@ -197,7 +368,7 @@ export function BatchCommitPanel() {
             value={targetSizeMb}
             onChange={(e) => {
               setTargetSizeMb(Number(e.target.value));
-              setScanResult(null); // Clear stale groups; re-scan to apply new target
+              setScanResult(null);
             }}
             className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-zinc-700 accent-amber-500"
           />
@@ -232,148 +403,148 @@ export function BatchCommitPanel() {
         {scanResult && (
           <>
             <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setFilePreviewExpanded(!filePreviewExpanded)}
-                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-zinc-700/30 transition-colors"
-              >
-                <h4 className="text-sm font-semibold text-zinc-200">File preview</h4>
-                <span className="text-zinc-500">
-                  {filePreviewExpanded ? '▼' : '▶'}
-                </span>
-              </button>
-              {filePreviewExpanded && (
-                <div className="px-4 pb-4 pt-0 space-y-4 border-t border-zinc-700/60">
-                  {!hasContent ? (
-                    <p className="text-sm text-zinc-500 py-2">No uncommitted or unstaged files found.</p>
-                  ) : (
-                    <>
-                      {smallFiles.length > 0 && (
-                        <div>
-                          <p className="text-xs text-zinc-500 mb-2">
-                            Commitable files ({smallFiles.length}) — grouped by target size below
-                          </p>
-                          <FileTree
-                            entries={smallFiles}
-                            entryVariant={(e) =>
-                              e.size >= SMALL_FILE_THRESHOLD && e.size < LARGE_FILE_THRESHOLD
-                                ? 'warning'
-                                : 'default'
-                            }
-                            maxHeight="max-h-40"
-                            defaultExpandedDepth={1}
-                          />
-                        </div>
-                      )}
-                      {largeFiles.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-xs text-red-400 font-medium">
-                            Files ≥99MB — add to LFS to include in commit:
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setSelectedLargeFilesForLFS((prev) => {
-                                const next = new Set(prev);
-                                largeFiles.forEach((e) => next.add(e.path));
-                                return next;
-                              })
-                            }
-                            className="px-2 py-1 rounded text-xs font-medium bg-zinc-700 text-zinc-300 hover:bg-zinc-600"
-                          >
-                            Add all files to LFS
-                          </button>
-                          <ul className="space-y-1 max-h-28 overflow-y-auto">
-                            {largeFiles.map((e) => (
-                              <li
-                                key={e.path}
-                                className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-zinc-700/40"
-                              >
-                                <span className="text-red-400/90 truncate flex-1 text-sm" title={e.path}>
-                                  {e.path}
-                                </span>
-                                <span className="text-zinc-500 text-xs shrink-0">{formatSize(e.size)}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => toggleLFS(e.path)}
-                                  className={`shrink-0 px-2 py-0.5 rounded text-xs font-medium ${
-                                    selectedLargeFilesForLFS.has(e.path)
-                                      ? 'bg-amber-600 text-white'
-                                      : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
-                                  }`}
-                                >
-                                  {selectedLargeFilesForLFS.has(e.path) ? 'Added to LFS' : 'Add to LFS'}
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 overflow-hidden">
-              <div className="px-4 py-3 border-b border-zinc-700">
-                <h4 className="text-sm font-semibold text-zinc-200">Commit preview</h4>
-                <p className="text-xs text-zinc-500 mt-0.5">
-                  {groupedCommits.length} group(s) · Click to expand and browse files
-                </p>
-              </div>
               <div className="divide-y divide-zinc-700/80">
-                {groupedCommits.length === 0 && selectedLargeFilesForLFS.size === 0 ? (
+                {!hasContent ? (
                   <div className="p-4">
-                    <p className="text-sm text-zinc-500">No commits to create.</p>
+                    <p className="text-sm text-zinc-500">No uncommitted or unstaged files found.</p>
                   </div>
                 ) : (
                   <>
-                    {groupedCommits.map((group, i) => {
+                    {displayGroups.map((group, i) => {
                       const totalSize = group.reduce((s, e) => s + e.size, 0);
                       const isExpanded = expandedGroups.has(i);
-                      const extra =
-                        i === groupedCommits.length - 1 && selectedLargeFilesForLFS.size > 0
-                          ? ` + ${selectedLargeFilesForLFS.size} LFS`
-                          : '';
                       return (
                         <div key={i} className="bg-zinc-800/30">
                           <button
                             type="button"
                             onClick={() => toggleGroup(i)}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-zinc-700/40 transition-colors"
+                            className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-zinc-700/40 transition-colors"
                           >
-                            <span className="text-zinc-500 shrink-0">
-                              {isExpanded ? '▼' : '▶'}
-                            </span>
-                            <span className="font-medium text-amber-400/95">
-                              {commitName || 'name'}_{i + 1}
-                            </span>
-                            <span className="text-zinc-500 text-sm">
-                              {group.length} files · {formatSize(totalSize)}
-                              {extra}
-                            </span>
+                            <div className="flex items-center gap-3 min-w-0">
+                              {isExpanded ? <ChevronDown /> : <ChevronRight />}
+                              <span className="font-medium text-amber-400/95">
+                                {commitName || 'name'}_{i + 1}
+                              </span>
+                              <span className="text-zinc-500 text-sm shrink-0">
+                                {formatSize(totalSize)} · {group.length} files
+                              </span>
+                            </div>
                           </button>
                           {isExpanded && (
                             <div className="px-4 pb-3 pt-0 border-t border-zinc-700/60">
-                              <FileTree
-                                entries={group}
-                                maxHeight="max-h-56"
-                                defaultExpandedDepth={2}
-                              />
+                              <div className="max-h-56 overflow-y-auto text-sm space-y-0.5">
+                                {group.map((entry) => (
+                                  <div
+                                    key={entry.path}
+                                    className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-zinc-700/30"
+                                    title={entry.path}
+                                  >
+                                    <span className="truncate flex-1 min-w-0 text-zinc-300">
+                                      {entry.path.split(/[/\\]/).pop() ?? entry.path}
+                                    </span>
+                                    <span className="text-zinc-500 text-xs shrink-0">
+                                      {formatSize(entry.size)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>
                       );
                     })}
-                    {groupedCommits.length === 0 && selectedLargeFilesForLFS.size > 0 && (
-                      <div className="px-4 py-3">
-                        <span className="font-medium text-amber-400/95">
-                          {commitName || 'name'}_1
-                        </span>
-                        <span className="text-zinc-500 text-sm ml-2">
-                          {selectedLargeFilesForLFS.size} LFS file(s)
-                        </span>
+
+                    {largeFiles.length > 0 && (
+                      <div className="bg-zinc-800/30">
+                        <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-zinc-700/40">
+                          <button
+                            type="button"
+                            onClick={() => toggleGroup(largeFileSectionIndex)}
+                            className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                          >
+                            {expandedGroups.has(largeFileSectionIndex) ? <ChevronDown /> : <ChevronRight />}
+                            <span className="font-medium text-amber-400/95">
+                              Large files
+                            </span>
+                            <span className="text-zinc-500 text-sm shrink-0">
+                              {formatSize(largeFiles.reduce((s, e) => s + e.size, 0))} ·{' '}
+                              {largeFiles.length} files
+                            </span>
+                            <span className="text-sm shrink-0">
+                              <span className="text-green-400">
+                                {largeFiles.filter((f) => f.commitMessage).length} committed
+                              </span>
+                              {' — '}
+                              <span className="text-red-400">
+                                {largeFiles.filter((f) => !effectiveInLfs(f)).length} NOT committed
+                              </span>
+                            </span>
+                          </button>
+                          {largeFiles.some((f) => !effectiveInLfs(f)) && (
+                            <button
+                              type="button"
+                              onClick={handleAddAllToLfs}
+                              className="shrink-0 px-3 py-1.5 rounded text-xs font-medium bg-amber-600 text-white hover:bg-amber-500"
+                            >
+                              Add all to LFS
+                            </button>
+                          )}
+                        </div>
+                        {expandedGroups.has(largeFileSectionIndex) && (
+                          <div className="px-4 pb-3 pt-0 border-t border-zinc-700/60">
+                            <div className="max-h-56 overflow-y-auto text-sm space-y-0.5">
+                              {largeFiles.map((entry) => {
+                                const inLfs = effectiveInLfs(entry);
+                                const commitIdx = getLfsFileCommitIndex(entry);
+                                const status = entry.commitMessage
+                                  ? `Included in commit ${entry.commitMessage}`
+                                  : commitIdx !== null
+                                    ? `Will be in commit ${commitName || 'name'}_${commitIdx + 1}`
+                                    : 'Uncommitted';
+                                const statusColor =
+                                  status === 'Uncommitted'
+                                    ? 'text-red-400'
+                                    : status.startsWith('Will be in commit')
+                                      ? 'text-green-400'
+                                      : 'text-zinc-500';
+                                return (
+                                  <div
+                                    key={entry.path}
+                                    className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-zinc-700/30"
+                                    title={entry.path}
+                                  >
+                                    <span className="truncate flex-1 min-w-0 text-zinc-300">
+                                      {entry.path.split(/[/\\]/).pop() ?? entry.path}
+                                    </span>
+                                    <span className="text-zinc-500 text-xs shrink-0">
+                                      {formatSize(entry.size)}
+                                    </span>
+                                    <span className={`${statusColor} text-xs shrink-0 max-w-[180px] truncate`} title={status}>
+                                      {status}
+                                    </span>
+                                    {inLfs ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveFromLfs(entry.path)}
+                                        className="shrink-0 px-2 py-0.5 rounded text-xs font-medium bg-zinc-600 text-white hover:bg-zinc-500"
+                                      >
+                                        Remove from LFS
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAddToLfs(entry.path)}
+                                        className="shrink-0 px-2 py-0.5 rounded text-xs font-medium bg-amber-600 text-white hover:bg-amber-500"
+                                      >
+                                        Add to LFS
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </>
@@ -387,7 +558,7 @@ export function BatchCommitPanel() {
               disabled={
                 !commitName.trim() ||
                 running ||
-                (!hasContent && selectedLargeFilesForLFS.size === 0)
+                !hasCommits
               }
               className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors w-fit"
             >

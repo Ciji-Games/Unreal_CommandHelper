@@ -1,9 +1,10 @@
 /**
  * Log context - shared log state for Output Log panel.
  * Allows RegenerateProjectPanel and other tools to clear the log before running.
+ * Throttles rapid appendLine calls to avoid UI freeze when many events arrive (e.g. batch commit).
  */
 
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useRef, useState } from 'react';
 import type { LogEvent } from '../components/OutputLogPanel';
 
 interface LogContextValue {
@@ -14,14 +15,45 @@ interface LogContextValue {
 
 const LogContext = createContext<LogContextValue | null>(null);
 
+const FLUSH_INTERVAL_MS = 50; // Throttle to ~20 updates/sec to keep UI responsive
+const MAX_FLUSH_BATCH = 25; // Limit lines per flush to avoid freeze when tabbing back with large backlog
+
 export function LogProvider({ children }: { children: React.ReactNode }) {
   const [lines, setLines] = useState<LogEvent[]>([]);
+  const bufferRef = useRef<LogEvent[]>([]);
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const appendLine = useCallback((event: LogEvent) => {
-    setLines((prev) => [...prev, event]);
+  const flush = useCallback(() => {
+    if (bufferRef.current.length === 0) return;
+    const toAdd = bufferRef.current.splice(0, MAX_FLUSH_BATCH);
+    setLines((prev) => [...prev, ...toAdd]);
+    if (bufferRef.current.length > 0) {
+      flushTimerRef.current = setTimeout(() => {
+        flushTimerRef.current = null;
+        flush();
+      }, FLUSH_INTERVAL_MS);
+    }
   }, []);
 
+  const appendLine = useCallback(
+    (event: LogEvent) => {
+      bufferRef.current.push(event);
+      if (flushTimerRef.current === null) {
+        flushTimerRef.current = setTimeout(() => {
+          flushTimerRef.current = null;
+          flush();
+        }, FLUSH_INTERVAL_MS);
+      }
+    },
+    [flush]
+  );
+
   const clearLog = useCallback(() => {
+    if (flushTimerRef.current !== null) {
+      clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+    }
+    bufferRef.current = [];
     setLines([]);
   }, []);
 

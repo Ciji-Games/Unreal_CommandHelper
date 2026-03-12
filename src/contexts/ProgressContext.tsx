@@ -34,7 +34,9 @@ interface ProgressContextValue {
   percent: number;
   elapsedMs: number;
   stepProgress: StepProgress | null;
-  startProgress: () => void;
+  /** When true, ToolBoxTab should open the output log when this run starts. */
+  shouldOpenOutputLog: boolean;
+  startProgress: (opts?: { showOutputLog?: boolean }) => void;
   finishProgress: () => void;
   startProgressForScheduler: (totalSteps: number, stepLabels: string[]) => void;
   setCurrentStep: (index: number) => void;
@@ -52,14 +54,16 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
   const [elapsedMs, setElapsedMs] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [stepProgress, setStepProgress] = useState<StepProgress | null>(null);
+  const [shouldOpenOutputLog, setShouldOpenOutputLog] = useState(false);
   const stopRequestedRef = useRef(false);
 
   const requestStop = useCallback(() => {
     stopRequestedRef.current = true;
   }, []);
 
-  const startProgress = useCallback(() => {
+  const startProgress = useCallback((opts?: { showOutputLog?: boolean }) => {
     stopRequestedRef.current = false;
+    setShouldOpenOutputLog(opts?.showOutputLog ?? false);
     setRunning(true);
     setPercent(0);
     setElapsedMs(0);
@@ -109,6 +113,7 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
     });
     setPercent(100);
     setRunning(false);
+    setShouldOpenOutputLog(false);
   }, []);
 
   useEffect(() => {
@@ -150,6 +155,7 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
         percent,
         elapsedMs,
         stepProgress,
+        shouldOpenOutputLog,
         startProgress,
         finishProgress,
         startProgressForScheduler,

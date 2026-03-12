@@ -2,9 +2,10 @@
 //! Translates batchcommit.bat and checkLFS.bat.
 
 use std::path::{Path, PathBuf};
+use std::thread;
 use std::time::Instant;
 
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 
 use crate::stream_processor;
 use crate::utils::build_cmd;
@@ -57,13 +58,57 @@ pub struct FileEntry {
     size: u64,
 }
 
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LargeFileEntry {
+    path: String,
+    size: u64,
+    in_lfs: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    commit_message: Option<String>,
+}
+
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanResult {
     git_root: String,
     small_files: Vec<FileEntry>,
     grouped_commits: Vec<Vec<FileEntry>>,
-    large_files: Vec<FileEntry>,
+    large_files: Vec<LargeFileEntry>,
+}
+
+/// Get LFS patterns from .gitattributes (paths/globs that have filter=lfs).
+fn get_lfs_patterns(git_root: &Path) -> std::collections::HashSet<String> {
+    let attr_path = git_root.join(".gitattributes");
+    if !attr_path.exists() {
+        return std::collections::HashSet::new();
+    }
+    let Ok(content) = std::fs::read_to_string(&attr_path) else {
+        return std::collections::HashSet::new();
+    };
+    content
+        .lines()
+        .filter(|line| line.contains("filter=lfs"))
+        .filter_map(|line| line.split_whitespace().next().map(|s| s.replace('\\', "/")))
+        .collect::<std::collections::HashSet<String>>()
+}
+
+/// Check if a path is tracked by LFS (exact match or glob match).
+fn path_in_lfs(path: &str, lfs_patterns: &std::collections::HashSet<String>) -> bool {
+    let path_norm = path.replace('\\', "/");
+    for pattern in lfs_patterns {
+        if path_norm == *pattern {
+            return true;
+        }
+        if pattern.contains('*') {
+            if let Some(suffix) = pattern.strip_prefix('*') {
+                if path_norm.ends_with(suffix) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
 
 /// Scan uncommitted files and return grouped result for preview.
@@ -87,8 +132,9 @@ pub fn scan_batch_commit(project_path: String, target_size_bytes: Option<u64>) -
     all_paths.sort();
     all_paths.dedup();
 
+    let lfs_patterns = get_lfs_patterns(&git_root);
     let mut commitable: Vec<FileEntry> = Vec::new();
-    let mut large_files: Vec<FileEntry> = Vec::new();
+    let mut large_files: Vec<LargeFileEntry> = Vec::new();
 
     for rel_path in &all_paths {
         let full_path = git_root.join(rel_path);
@@ -96,15 +142,47 @@ pub fn scan_batch_commit(project_path: String, target_size_bytes: Option<u64>) -
             continue;
         }
         let size = std::fs::metadata(&full_path).map_err(|e| e.to_string())?.len();
-        let entry = FileEntry {
-            path: rel_path.clone(),
-            size,
-        };
         if size >= MIN_FILE_SIZE {
-            large_files.push(entry);
+            large_files.push(LargeFileEntry {
+                path: rel_path.clone(),
+                size,
+                in_lfs: path_in_lfs(rel_path, &lfs_patterns),
+                commit_message: None,
+            });
         } else {
-            commitable.push(entry);
+            commitable.push(FileEntry {
+                path: rel_path.clone(),
+                size,
+            });
         }
+    }
+
+    // Add committed LFS large files (tracked, in LFS, already committed)
+    let tracked = run_git(&git_root, &["ls-files"]).unwrap_or_default();
+    let uncommitted_paths: std::collections::HashSet<&str> =
+        all_paths.iter().map(|s| s.as_str()).collect();
+    for rel_path in tracked.lines().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        if uncommitted_paths.contains(rel_path) {
+            continue;
+        }
+        let full_path = git_root.join(rel_path);
+        if !full_path.exists() || full_path.is_dir() {
+            continue;
+        }
+        let Ok(meta) = std::fs::metadata(&full_path) else {
+            continue;
+        };
+        let size = meta.len();
+        if size < MIN_FILE_SIZE || !path_in_lfs(rel_path, &lfs_patterns) {
+            continue;
+        }
+        let commit_msg = run_git(&git_root, &["log", "-1", "--format=%s", "--", rel_path]).ok();
+        large_files.push(LargeFileEntry {
+            path: rel_path.to_string(),
+            size,
+            in_lfs: true,
+            commit_message: commit_msg.filter(|s| !s.is_empty()),
+        });
     }
 
     // Group commitable files by target size (best-effort near target)
@@ -188,14 +266,66 @@ pub fn add_to_lfs(project_path: String, paths: Vec<String>) -> Result<u32, Strin
     Ok(added)
 }
 
-/// Execute batch commit: add to LFS first if needed, then git add + commit each group.
+/// Remove paths from .gitattributes (LFS tracking).
 #[tauri::command]
-pub fn batch_commit(
+pub fn remove_from_lfs(project_path: String, paths: Vec<String>) -> Result<u32, String> {
+    let project_dir = resolve_project_dir(&project_path);
+    let git_root = find_git_root(&project_dir)?;
+    let attr_path = git_root.join(".gitattributes");
+
+    if !attr_path.exists() {
+        return Ok(0);
+    }
+
+    let to_remove: std::collections::HashSet<String> = paths
+        .iter()
+        .map(|p| p.replace('\\', "/"))
+        .collect();
+
+    let content = std::fs::read_to_string(&attr_path).map_err(|e| e.to_string())?;
+    let mut removed = 0u32;
+    let new_lines: Vec<&str> = content
+        .lines()
+        .filter(|line| {
+            let pattern = line.split_whitespace().next().map(|s| s.replace('\\', "/"));
+            if let Some(ref p) = pattern {
+                if to_remove.contains(p) {
+                    removed += 1;
+                    return false;
+                }
+            }
+            true
+        })
+        .collect();
+
+    if removed > 0 {
+        let new_content = new_lines.join("\n");
+        let needs_newline = !new_content.is_empty() && !new_content.ends_with('\n');
+        std::fs::write(
+            &attr_path,
+            if needs_newline {
+                format!("{}\n", new_content)
+            } else {
+                new_content
+            },
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    Ok(removed)
+}
+
+/// Event names for frontend to listen when batch commit runs in background.
+pub const BATCH_COMMIT_COMPLETE: &str = "batch-commit-complete";
+pub const BATCH_COMMIT_ERROR: &str = "batch-commit-error";
+
+/// Run batch commit logic (returns Err on failure). Used by both sync and background paths.
+fn run_batch_commit_impl(
     project_path: String,
     commit_name: String,
     groups: Vec<Vec<String>>,
     lfs_paths: Vec<String>,
-    app: AppHandle,
+    app: &AppHandle,
 ) -> Result<(), String> {
     let start = Instant::now();
     let project_dir = resolve_project_dir(&project_path);
@@ -209,11 +339,11 @@ pub fn batch_commit(
 
     // 1. Add to LFS first if any large files selected
     if has_lfs {
-        stream_processor::emit_progress(&app, 0, start.elapsed().as_millis() as u64);
+        stream_processor::emit_progress(app, 0, start.elapsed().as_millis() as u64);
         let added = add_to_lfs(project_path.clone(), lfs_paths.clone())?;
         if added > 0 {
             stream_processor::emit_log(
-                &app,
+                app,
                 &format!("Added {} file(s) to .gitattributes (LFS)", added),
                 Some("blue"),
             );
@@ -224,35 +354,70 @@ pub fn batch_commit(
         } else {
             100
         };
-        stream_processor::emit_progress(&app, pct, start.elapsed().as_millis() as u64);
+        stream_processor::emit_progress(app, pct, start.elapsed().as_millis() as u64);
     }
 
-    // 2. Build groups: append lfs_paths to last group
-    let mut groups = groups;
-    if !lfs_paths.is_empty() {
-        if groups.is_empty() {
-            groups.push(lfs_paths);
-        } else {
-            let last = groups.len() - 1;
-            groups[last].extend(lfs_paths);
-        }
-    }
+    // 2. Groups are pre-distributed by the frontend (LFS paths already in groups).
+    //    We use groups as-is; lfs_paths was only for add_to_lfs above.
 
     // 3. Commit each group
+    let lfs_set: std::collections::HashSet<&str> = lfs_paths.iter().map(|s| s.as_str()).collect();
+    let mut gitattributes_committed = false;
+
     for (idx, group) in groups.iter().enumerate() {
         if group.is_empty() {
             continue;
         }
         let msg = format!("{}_{}", commit_name, idx + 1);
-        stream_processor::emit_log(&app, &format!("Committing group {}...", idx + 1), Some("blue"));
+        stream_processor::emit_log(app, &format!("Committing group {}...", idx + 1), Some("blue"));
 
+        // Include .gitattributes in the first group that contains LFS files so they are properly flagged
+        let group_has_lfs = group.iter().any(|p| lfs_set.contains(p.as_str()));
+        if group_has_lfs && !gitattributes_committed {
+            let attr_path = git_root.join(".gitattributes");
+            if attr_path.exists() {
+                let args = vec!["add".to_string(), ".gitattributes".to_string()];
+                let mut cmd = build_cmd("git", &args, Some(git_root_str));
+                let out = cmd.output().map_err(|e| e.to_string())?;
+                if !out.status.success() {
+                    let err = String::from_utf8_lossy(&out.stderr);
+                    stream_processor::emit_log(app, &format!("[ERROR] git add .gitattributes: {}", err), Some("red"));
+                } else {
+                    gitattributes_committed = true;
+                }
+            }
+        }
+
+        // Batch git add to avoid spawning one process per file (reduces UI freeze with many files)
+        const BATCH_CHAR_LIMIT: usize = 4000; // Stay under Windows cmd line limit (~8191)
+        let mut batch: Vec<String> = Vec::new();
+        let mut batch_len: usize = 0;
         for path in group {
-            let args = vec!["add".to_string(), path.clone()];
+            let path_len = path.len() + 1; // +1 for space
+            if batch_len + path_len > BATCH_CHAR_LIMIT && !batch.is_empty() {
+                let mut args = vec!["add".to_string()];
+                args.append(&mut batch);
+                let mut cmd = build_cmd("git", &args, Some(git_root_str));
+                let out = cmd.output().map_err(|e| e.to_string())?;
+                if !out.status.success() {
+                    let err = String::from_utf8_lossy(&out.stderr);
+                    stream_processor::emit_log(app, &format!("[ERROR] git add (batch): {}", err), Some("red"));
+                }
+                batch = Vec::new();
+                batch_len = 0;
+                thread::yield_now(); // Let UI process events between batches
+            }
+            batch.push(path.clone());
+            batch_len += path_len;
+        }
+        if !batch.is_empty() {
+            let mut args = vec!["add".to_string()];
+            args.append(&mut batch);
             let mut cmd = build_cmd("git", &args, Some(git_root_str));
             let out = cmd.output().map_err(|e| e.to_string())?;
             if !out.status.success() {
                 let err = String::from_utf8_lossy(&out.stderr);
-                stream_processor::emit_log(&app, &format!("[ERROR] git add {}: {}", path, err), Some("red"));
+                stream_processor::emit_log(app, &format!("[ERROR] git add (batch): {}", err), Some("red"));
             }
         }
 
@@ -260,11 +425,11 @@ pub fn batch_commit(
         let mut cmd = build_cmd("git", &args, Some(git_root_str));
         let out = cmd.output().map_err(|e| e.to_string())?;
         if out.status.success() {
-            stream_processor::emit_log(&app, &format!("Committed: {}", msg), Some("green"));
+            stream_processor::emit_log(app, &format!("Committed: {}", msg), Some("green"));
         } else {
             let err = String::from_utf8_lossy(&out.stderr);
             if err.contains("nothing to commit") {
-                stream_processor::emit_log(&app, &format!("Nothing to commit for group {} (already staged?)", idx + 1), Some("orange"));
+                stream_processor::emit_log(app, &format!("Nothing to commit for group {} (already staged?)", idx + 1), Some("orange"));
             } else {
                 return Err(format!("git commit failed: {}", err));
             }
@@ -276,10 +441,39 @@ pub fn batch_commit(
         } else {
             100
         };
-        stream_processor::emit_progress(&app, pct, start.elapsed().as_millis() as u64);
+        stream_processor::emit_progress(app, pct, start.elapsed().as_millis() as u64);
     }
 
-    stream_processor::emit_progress(&app, 100, start.elapsed().as_millis() as u64);
-    stream_processor::emit_log(&app, "Batch commit completed.", Some("green"));
+    stream_processor::emit_progress(app, 100, start.elapsed().as_millis() as u64);
+    stream_processor::emit_log(app, "Batch commit completed.", Some("green"));
+    Ok(())
+}
+
+/// Execute batch commit in a background thread. Returns immediately so the UI stays responsive
+/// (especially when tabbed out). Emits batch-commit-complete or batch-commit-error when done.
+#[tauri::command]
+pub fn batch_commit(
+    project_path: String,
+    commit_name: String,
+    groups: Vec<Vec<String>>,
+    lfs_paths: Vec<String>,
+    app: AppHandle,
+) -> Result<(), String> {
+    let project_path = project_path;
+    let commit_name = commit_name;
+    let groups = groups;
+    let lfs_paths = lfs_paths;
+
+    std::thread::spawn(move || {
+        match run_batch_commit_impl(project_path, commit_name, groups, lfs_paths, &app) {
+            Ok(()) => {
+                let _ = app.emit(BATCH_COMMIT_COMPLETE, ());
+            }
+            Err(e) => {
+                let _ = app.emit(BATCH_COMMIT_ERROR, e);
+            }
+        }
+    });
+
     Ok(())
 }
