@@ -15,6 +15,25 @@ jobs:
       CARGO_TARGET_DIR: ${{ github.workspace }}/src-tauri/target
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: bump version
+        run: |
+          node -e "
+          const fs = require('fs');
+          const confPath = 'src-tauri/tauri.conf.json';
+          const cargoPath = 'src-tauri/Cargo.toml';
+          const conf = JSON.parse(fs.readFileSync(confPath, 'utf8'));
+          const [major, minor, patch] = conf.version.split('.').map(Number);
+          const newVersion = major + '.' + minor + '.' + (patch + 1);
+          conf.version = newVersion;
+          fs.writeFileSync(confPath, JSON.stringify(conf, null, 2));
+          const cargo = fs.readFileSync(cargoPath, 'utf8');
+          fs.writeFileSync(cargoPath, cargo.replace(/^version = \".*\"$/m, 'version = \"' + newVersion + '\"'));
+          console.log('Bumped version to', newVersion);
+          fs.appendFileSync(process.env.GITHUB_ENV, '\\nAPP_VERSION=' + newVersion + '\\n');
+          "
 
       - name: setup node
         uses: actions/setup-node@v4
@@ -38,3 +57,12 @@ jobs:
           releaseDraft: false
           prerelease: false
           tauriScript: npx tauri
+
+      - name: commit version bump
+        if: github.ref == 'refs/heads/release'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src-tauri/tauri.conf.json src-tauri/Cargo.toml
+          git diff --staged --quiet || git commit -m "chore: bump version [skip ci]"
+          git push
