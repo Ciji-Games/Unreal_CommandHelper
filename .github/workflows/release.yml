@@ -19,7 +19,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: bump version
-        run: node scripts/bump-version.js
+        run: node scripts/bump-version.cjs
 
       - name: setup node
         uses: actions/setup-node@v4
