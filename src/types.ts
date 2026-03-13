@@ -67,4 +67,5 @@ export const SCHEDULABLE_STEPS: SchedulableStepDef[] = [
   { id: 'regenerate', label: 'Regenerate Project', requiresMap: false },
   { id: 'build_plugin', label: 'Build Plugin', requiresMap: false },
   { id: 'launch', label: 'Launch Project', requiresMap: false },
+  { id: 'movie_render_queue', label: 'Movie Render Queue', requiresMap: true },
 ];

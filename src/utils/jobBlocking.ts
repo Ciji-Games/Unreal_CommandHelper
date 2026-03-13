@@ -28,6 +28,7 @@ const STEP_PROCESS_GROUPS: Record<string, ProcessGroupName[]> = {
   regenerate: ['regenerate'],
   build_plugin: ['umap'],
   launch: [],
+  movie_render_queue: ['uproject'],
 };
 
 /**
@@ -43,6 +44,33 @@ export function getBlockingGroupsForJob(job: ScheduledJob): ProcessGroupName[] {
     }
   }
   return Array.from(groups);
+}
+
+/**
+ * Returns a short message when the job is blocked, or null when not blocked.
+ */
+export function getBlockingMessageForJob(
+  job: ScheduledJob,
+  monitors: {
+    umap: { hasBlockingProcesses: boolean };
+    uproject: { hasBlockingProcesses: boolean };
+    regenerate: { hasBlockingProcesses: boolean };
+  }
+): string | null {
+  const groups = getBlockingGroupsForJob(job);
+  if (groups.length === 0) return null;
+
+  const regenerateBlocked = monitors.regenerate.hasBlockingProcesses;
+  const umapBlocked = monitors.umap.hasBlockingProcesses;
+  const uprojectBlocked = monitors.uproject.hasBlockingProcesses;
+
+  if (groups.includes('regenerate') && regenerateBlocked) {
+    return 'Blocked: U.E or IDE running';
+  }
+  if ((groups.includes('umap') && umapBlocked) || (groups.includes('uproject') && uprojectBlocked)) {
+    return 'Blocked: U.E is running';
+  }
+  return null;
 }
 
 /**

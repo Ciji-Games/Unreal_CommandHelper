@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { useScheduledJobs } from '../hooks/useScheduledJobs';
 import { useRunScheduledJob } from '../hooks/useRunScheduledJob';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
-import { hasBlockingProcessesForJob } from '../utils/jobBlocking';
+import { hasBlockingProcessesForJob, getBlockingMessageForJob } from '../utils/jobBlocking';
 import { ToolGroup } from './ToolGroup';
 import { OutputLogPanel } from './OutputLogPanel';
 import {
@@ -17,6 +17,7 @@ import {
   StepParamPanelRegenerate,
   StepParamPanelPlugin,
   StepParamPanelLaunch,
+  StepParamPanelMovieRenderQueue,
 } from './scheduler';
 import type { ScheduledJob, ScheduledStep } from '../types';
 import { SCHEDULABLE_STEPS } from '../types';
@@ -68,6 +69,9 @@ function StepParamPanel({
   }
   if (step.id === 'launch') {
     return <StepParamPanelLaunch value={value} onChange={onChange} />;
+  }
+  if (step.id === 'movie_render_queue') {
+    return <StepParamPanelMovieRenderQueue value={value} onChange={onChange} />;
   }
   return null;
 }
@@ -451,13 +455,17 @@ export function SchedulerTab() {
                   type="button"
                   onClick={() => handleRun(selectedJob)}
                   disabled={
-                  selectedJob.steps.length === 0 ||
-                  hasBlockingProcessesForJob(selectedJob, monitors) ||
-                  runJobRunning
-                }
-                  className="rounded px-3 py-1.5 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-sm"
+                    selectedJob.steps.length === 0 ||
+                    hasBlockingProcessesForJob(selectedJob, monitors) ||
+                    runJobRunning
+                  }
+                  className={`rounded px-3 py-1.5 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white ${
+                    getBlockingMessageForJob(selectedJob, monitors) ? 'text-xs' : 'text-sm'
+                  }`}
                 >
-                  Run
+                  {runJobRunning
+                    ? 'Running...'
+                    : getBlockingMessageForJob(selectedJob, monitors) ?? 'Run'}
                 </button>
                 <button
                   type="button"
@@ -527,14 +535,18 @@ export function SchedulerTab() {
                 type="button"
                 onClick={() => handleConfirmRun()}
                 disabled={
-                runJobRunning ||
-                (runDialogJob
-                  ? hasBlockingProcessesForJob(runDialogJob, monitors)
-                  : false)
-              }
+                  runJobRunning ||
+                  (runDialogJob
+                    ? hasBlockingProcessesForJob(runDialogJob, monitors)
+                    : false)
+                }
                 className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium"
               >
-                {runJobRunning ? 'Running...' : 'Run'}
+                {runJobRunning
+                  ? 'Running...'
+                  : runDialogJob
+                    ? getBlockingMessageForJob(runDialogJob, monitors) ?? 'Run'
+                    : 'Run'}
               </button>
               <button
                 type="button"

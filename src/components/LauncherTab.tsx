@@ -9,7 +9,7 @@ import { useProjects } from '../hooks/useProjects';
 import { useScheduledJobs } from '../hooks/useScheduledJobs';
 import { useRunScheduledJob } from '../hooks/useRunScheduledJob';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
-import { hasBlockingProcessesForJob } from '../utils/jobBlocking';
+import { hasBlockingProcessesForJob, getBlockingMessageForJob } from '../utils/jobBlocking';
 import { LauncherCard } from './LauncherCard';
 import { AddProjectButton } from './AddProjectButton';
 import { PinnedJobCard } from './PinnedJobCard';
@@ -130,6 +130,8 @@ export function LauncherTab() {
                   job.steps.length === 0 ||
                   hasBlockingProcessesForJob(job, monitors)
                 }
+                blockingMessage={getBlockingMessageForJob(job, monitors)}
+                running={runJobRunning}
               />
             ))}
           </div>

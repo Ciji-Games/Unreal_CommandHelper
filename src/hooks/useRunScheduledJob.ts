@@ -157,6 +157,20 @@ export function useRunScheduledJob() {
             } else {
               await invoke('open_file', { path: projectPath });
             }
+          } else if (step.id === 'movie_render_queue') {
+            const mapPath = params.map as string;
+            const moviePipelineConfig = params.moviePipelineConfig as string;
+            const levelSequence =
+              params.mode === 'mix_match' && params.levelSequence
+                ? (params.levelSequence as string)
+                : null;
+            await invoke('run_movie_render_queue', {
+              projectPath,
+              mapPath,
+              moviePipelineConfig,
+              levelSequence,
+              enginePath,
+            });
           }
         } catch (e) {
           const errMsg = e instanceof Error ? e.message : String(e);
