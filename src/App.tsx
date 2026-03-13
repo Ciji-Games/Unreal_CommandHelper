@@ -7,16 +7,18 @@ import { LinksTab } from './components/LinksTab';
 import { ShaderBoosterBackground } from './components/ShaderBoosterBackground';
 import { LogProvider } from './contexts/LogContext';
 import { ProgressProvider } from './contexts/ProgressContext';
+import { ProjectsProvider } from './contexts/ProjectsContext';
 
 function App() {
   const [activeTab, setActiveTab] = useState<'launcher' | 'toolbox' | 'scheduler' | 'links'>('launcher');
 
   return (
-    <LogProvider>
-      <ProgressProvider>
-      <ShaderBoosterBackground />
-      <BaseLayout>
-        <div className="flex flex-col gap-6 min-h-0 flex-1">
+    <ProjectsProvider>
+      <LogProvider>
+        <ProgressProvider>
+          <ShaderBoosterBackground />
+          <BaseLayout>
+            <div className="flex flex-col gap-6 min-h-0 flex-1">
           {/* Tab navigation */}
           <div className="flex gap-2 border-b border-zinc-800 pb-2">
             <button
@@ -77,10 +79,11 @@ function App() {
             </div>
           )}
           {activeTab === 'links' && <LinksTab />}
-        </div>
-      </BaseLayout>
-      </ProgressProvider>
-    </LogProvider>
+            </div>
+          </BaseLayout>
+        </ProgressProvider>
+      </LogProvider>
+    </ProjectsProvider>
   );
 }
 

@@ -114,25 +114,24 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
     onRemove?.(project.projectPath);
   };
 
-  /* Compact engine card: no thumbnail, horizontal layout */
+  /* Compact engine card: same layout as non-compact but without thumbnail */
   if (isEngine) {
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 shrink-0">
-        <h3 className="font-semibold text-white truncate text-sm" title={project.projectName}>
-          {project.projectName}
-        </h3>
-        <button
-          type="button"
-          onClick={handleLaunchProject}
-          disabled={launchDisabled}
-          className="ml-auto shrink-0 p-1.5 rounded bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-600"
-          title="Launch Unreal Engine"
-          aria-label="Launch"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
-            <path d="M8 5v14l11-7z" />
-          </svg>
-        </button>
+      <div className="flex flex-col rounded-lg border border-zinc-700 bg-zinc-900/80 w-36 shrink-0">
+        <div className="p-3 space-y-2">
+          <h3 className="font-semibold text-white truncate text-sm text-center" title={project.projectName}>
+            {project.projectName}
+          </h3>
+          <button
+            type="button"
+            onClick={handleLaunchProject}
+            disabled={launchDisabled}
+            className="w-full px-2 py-1.5 text-xs font-medium rounded bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-600"
+            title="Launch Unreal Engine"
+          >
+            {launchDisabled ? 'Launching…' : 'Launch'}
+          </button>
+        </div>
       </div>
     );
   }

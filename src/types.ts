@@ -35,6 +35,8 @@ export interface ScheduledJob {
   id: string; // UUID
   name: string;
   steps: ScheduledStep[];
+  /** When true, job appears in the Launcher under Pinned Jobs */
+  pinned?: boolean;
 }
 
 /** Schedulable step type */
