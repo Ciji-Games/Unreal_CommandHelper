@@ -3,13 +3,10 @@
  */
 
 import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { useProjects } from '../hooks/useProjects';
-import { useSettings } from '../hooks/useSettings';
 import { useScheduledJobs } from '../hooks/useScheduledJobs';
+import { useRunScheduledJob } from '../hooks/useRunScheduledJob';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
-import { useLog } from '../contexts/LogContext';
-import { useProgress } from '../contexts/ProgressContext';
+import { hasBlockingProcessesForJob, getBlockingMessageForJob } from '../utils/jobBlocking';
 import { ToolGroup } from './ToolGroup';
 import { OutputLogPanel } from './OutputLogPanel';
 import {
@@ -19,6 +16,8 @@ import {
   StepParamPanelArchive,
   StepParamPanelRegenerate,
   StepParamPanelPlugin,
+  StepParamPanelLaunch,
+  StepParamPanelMovieRenderQueue,
 } from './scheduler';
 import type { ScheduledJob, ScheduledStep } from '../types';
 import { SCHEDULABLE_STEPS } from '../types';
@@ -68,29 +67,31 @@ function StepParamPanel({
   if (step.id === 'build_plugin') {
     return <StepParamPanelPlugin value={value} onChange={onChange} />;
   }
+  if (step.id === 'launch') {
+    return <StepParamPanelLaunch value={value} onChange={onChange} />;
+  }
+  if (step.id === 'movie_render_queue') {
+    return <StepParamPanelMovieRenderQueue value={value} onChange={onChange} />;
+  }
   return null;
 }
 
 export function SchedulerTab() {
   const { jobs, loading, addJob, updateJob, removeJob } = useScheduledJobs();
-  const { projects } = useProjects();
-  const { settings } = useSettings();
-  const { clearLog } = useLog();
-  const { startProgressForScheduler, setCurrentStep, finishProgress, stopRequestedRef } = useProgress();
+  const { runJob, running: runJobRunning } = useRunScheduledJob();
   const umapMonitor = useProcessMonitor('umap');
   const uprojectMonitor = useProcessMonitor('uproject');
   const regenerateMonitor = useProcessMonitor('regenerate');
-
-  const hasBlockingProcesses =
-    umapMonitor.hasBlockingProcesses ||
-    uprojectMonitor.hasBlockingProcesses ||
-    regenerateMonitor.hasBlockingProcesses;
+  const monitors = {
+    umap: umapMonitor,
+    uproject: uprojectMonitor,
+    regenerate: regenerateMonitor,
+  };
 
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [editingJob, setEditingJob] = useState<ScheduledJob | null>(null);
   const [runDialogJob, setRunDialogJob] = useState<ScheduledJob | null>(null);
   const [stopOnFailure, setStopOnFailure] = useState(true);
-  const [running, setRunning] = useState(false);
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set([0]));
   const [showOutputLog, setShowOutputLog] = useState(false);
 
@@ -201,134 +202,22 @@ export function SchedulerTab() {
 
   const handleConfirmRun = async () => {
     const job = runDialogJob;
-    if (!job || job.steps.length === 0 || running || hasBlockingProcesses) return;
+    if (
+      !job ||
+      job.steps.length === 0 ||
+      runJobRunning ||
+      hasBlockingProcessesForJob(job, monitors)
+    )
+      return;
 
-    const shouldStopOnFailure = stopOnFailure;
     setRunDialogJob(null);
     setShowOutputLog(true);
-
-    setRunning(true);
-    clearLog();
-    startProgressForScheduler(
-      job.steps.length,
-      job.steps.map((s) => getStepLabel(s.id))
-    );
-
-    let failed = false;
-    for (let i = 0; i < job.steps.length && !failed; i++) {
-      if (stopRequestedRef.current) break;
-      setCurrentStep(i);
-      const step = job.steps[i];
-      const params = step.params;
-      const projectPath = params.project as string;
-      const project = projects.find((p) => p.projectPath === projectPath);
-      const enginePath = project?.engineInstallPath ?? '';
-
-      try {
-        if (step.id === 'delete_hlod') {
-          await invoke('run_map_command', {
-            projectPath,
-            mapPath: params.map,
-            builder: 'WorldPartitionHLODsBuilder',
-            extraArgs: '-DeleteHLODs',
-            enginePath,
-            launchMapAfter: params.launchMapAfter ?? false,
-          });
-        } else if (step.id === 'build_hlod') {
-          await invoke('run_map_command', {
-            projectPath,
-            mapPath: params.map,
-            builder: 'WorldPartitionHLODsBuilder',
-            extraArgs: null,
-            enginePath,
-            launchMapAfter: params.launchMapAfter ?? false,
-          });
-        } else if (step.id === 'build_minimap') {
-          await invoke('run_map_command', {
-            projectPath,
-            mapPath: params.map,
-            builder: 'WorldPartitionMiniMapBuilder',
-            extraArgs: null,
-            enginePath,
-            launchMapAfter: params.launchMapAfter ?? false,
-          });
-        } else if (step.id === 'build_lighting') {
-          await invoke('run_build_lighting', {
-            projectPath,
-            mapPath: params.map,
-            enginePath,
-            quality: params.quality ?? undefined,
-          });
-        } else if (step.id === 'cook') {
-          await invoke('run_cook', {
-            projectPath,
-            platform: params.platform ?? 'Win64',
-            enginePath,
-          });
-        } else if (step.id === 'package') {
-          const pkgPath =
-            (params.outputPath as string) ?? (params.archiveDirectory as string) ?? '';
-          const pkgDir = pkgPath.toLowerCase().endsWith('.zip')
-            ? pkgPath.slice(0, Math.max(pkgPath.lastIndexOf('/'), pkgPath.lastIndexOf('\\')))
-            : pkgPath;
-          await invoke('run_package', {
-            projectPath,
-            platform: params.platform ?? 'Win64',
-            clientConfig: params.config ?? 'Development',
-            archiveDirectory: pkgDir,
-            enginePath,
-          });
-        } else if (step.id === 'archive') {
-          const outPath =
-            (params.outputPath as string) ?? (params.outputZipPath as string) ?? '';
-          const projectName =
-            projectPath.split(/[/\\]/).pop()?.replace(/\.uproject$/, '') ?? 'Project';
-          const zipPath = outPath.toLowerCase().endsWith('.zip')
-            ? outPath
-            : `${outPath.replace(/[/\\]+$/, '')}/${projectName}.zip`;
-          await invoke('run_archive', {
-            projectPath,
-            outputZipPath: zipPath,
-            enginePath,
-          });
-        } else if (step.id === 'build') {
-          await invoke('run_build', {
-            projectPath,
-            enginePath,
-            isCpp: project?.isCpp ?? false,
-          });
-        } else if (step.id === 'regenerate') {
-          const versionPath =
-            settings.unrealVersionSelectorPath ||
-            (await invoke<string | null>('get_unreal_version_selector_path'));
-          if (!versionPath) throw new Error('UnrealVersionSelector.exe not found. Set path in settings.');
-          await invoke('regenerate_project', {
-            uprojectPath: projectPath,
-            openProjectAfter: params.openProjectAfter ?? false,
-            openSlnAfter: params.openSlnAfter ?? false,
-            buildAfter: params.buildAfter ?? false,
-            versionSelectorPath: versionPath,
-            engineInstallPath: enginePath,
-          });
-        } else if (step.id === 'build_plugin') {
-          await invoke('build_plugin', {
-            upluginPath: params.upluginPath ?? '',
-            engineVersion: params.engineVersion ?? '',
-            createZip: params.createZip ?? true,
-          });
-        }
-      } catch (e) {
-        const errMsg = e instanceof Error ? e.message : String(e);
-        console.error(`Step ${i + 1} (${getStepLabel(step.id)}) failed:`, errMsg);
-        if (stopRequestedRef.current || shouldStopOnFailure) {
-          failed = true;
-        }
-      }
-    }
-
-    setRunning(false);
-    finishProgress();
+    await runJob(job, { stopOnFailure });
   };
+
+  const jobWithBlocking = runDialogJob ?? selectedJob;
+  const showBlockingBanner =
+    jobWithBlocking && hasBlockingProcessesForJob(jobWithBlocking, monitors);
 
   return (
     <div className="flex flex-col gap-4 flex-1 min-h-0 overflow-hidden">
@@ -337,7 +226,7 @@ export function SchedulerTab() {
         <p className="text-zinc-400 text-sm">
           Create named batch jobs as sequences of tools. Run jobs to execute steps in order.
         </p>
-        {hasBlockingProcesses && (
+        {showBlockingBanner && (
           <div className="mt-2 rounded-lg border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
             <p className="font-medium">Cannot run: Unreal Engine or related tools are running</p>
             <p className="mt-1 text-amber-200/90">
@@ -378,6 +267,24 @@ export function SchedulerTab() {
                     className="flex-1 text-left min-w-0 truncate"
                   >
                     {job.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      updateJob(job.id, { pinned: !job.pinned });
+                    }}
+                    className={`shrink-0 p-1 rounded transition-colors ${
+                      job.pinned
+                        ? 'text-amber-500 hover:text-amber-400'
+                        : 'text-zinc-500 hover:text-zinc-400'
+                    }`}
+                    title={job.pinned ? 'Unpin from launcher' : 'Pin to launcher'}
+                    aria-label={job.pinned ? 'Unpin' : 'Pin'}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
+                    </svg>
                   </button>
                   <span className="text-xs text-zinc-500 shrink-0">
                     {job.steps.length} steps
@@ -547,10 +454,18 @@ export function SchedulerTab() {
                 <button
                   type="button"
                   onClick={() => handleRun(selectedJob)}
-                  disabled={selectedJob.steps.length === 0 || hasBlockingProcesses}
-                  className="rounded px-3 py-1.5 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-sm"
+                  disabled={
+                    selectedJob.steps.length === 0 ||
+                    hasBlockingProcessesForJob(selectedJob, monitors) ||
+                    runJobRunning
+                  }
+                  className={`rounded px-3 py-1.5 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white ${
+                    getBlockingMessageForJob(selectedJob, monitors) ? 'text-xs' : 'text-sm'
+                  }`}
                 >
-                  Run
+                  {runJobRunning
+                    ? 'Running...'
+                    : getBlockingMessageForJob(selectedJob, monitors) ?? 'Run'}
                 </button>
                 <button
                   type="button"
@@ -619,15 +534,24 @@ export function SchedulerTab() {
               <button
                 type="button"
                 onClick={() => handleConfirmRun()}
-                disabled={running || hasBlockingProcesses}
+                disabled={
+                  runJobRunning ||
+                  (runDialogJob
+                    ? hasBlockingProcessesForJob(runDialogJob, monitors)
+                    : false)
+                }
                 className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium"
               >
-                {running ? 'Running...' : 'Run'}
+                {runJobRunning
+                  ? 'Running...'
+                  : runDialogJob
+                    ? getBlockingMessageForJob(runDialogJob, monitors) ?? 'Run'
+                    : 'Run'}
               </button>
               <button
                 type="button"
                 onClick={handleCancelRun}
-                disabled={running}
+                disabled={runJobRunning}
                 className="rounded px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white font-medium"
               >
                 Cancel

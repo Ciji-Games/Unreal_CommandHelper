@@ -10,6 +10,7 @@ import { UmapHelperPanel } from './UmapHelperPanel';
 import { ShaderBoosterPanel } from './ShaderBoosterPanel';
 import { PluginHelperPanel } from './PluginHelperPanel';
 import { UProjectHelperPanel } from './UProjectHelperPanel';
+import { MovieRenderQueuePanel } from './MovieRenderQueuePanel';
 import { BatchCommitPanel } from './BatchCommitPanel';
 import { OutputLogPanel } from './OutputLogPanel';
 
@@ -20,6 +21,7 @@ const TOOLS = [
   { id: 'umap', label: 'UMap Helper', panel: UmapHelperPanel },
   { id: 'plugin', label: 'Plugin Helper', panel: PluginHelperPanel },
   { id: 'uproject', label: 'UProject Helper', panel: UProjectHelperPanel },
+  { id: 'movierenderqueue', label: 'Movie Render Queue', panel: MovieRenderQueuePanel },
 ] as const;
 
 type ToolId = (typeof TOOLS)[number]['id'];

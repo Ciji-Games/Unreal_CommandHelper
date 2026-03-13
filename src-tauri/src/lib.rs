@@ -21,7 +21,10 @@ pub fn run() {
             commands::registry::get_installed_engine_paths,
             commands::projects::analyse_uproject,
             commands::projects::get_project_thumbnail_path,
+            commands::projects::filter_existing_paths,
+            commands::projects::scan_project_maps,
             commands::process::open_file,
+            commands::process::launch_project_with_map,
             commands::process::run_command,
             commands::process::kill_process,
             commands::process::stop_running_process,
@@ -38,6 +41,7 @@ pub fn run() {
             commands::uproject::run_build,
             commands::plugin::list_plugins_for_project,
             commands::plugin::build_plugin,
+            commands::movie_render_queue::run_movie_render_queue,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

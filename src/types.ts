@@ -35,6 +35,8 @@ export interface ScheduledJob {
   id: string; // UUID
   name: string;
   steps: ScheduledStep[];
+  /** When true, job appears in the Launcher under Pinned Jobs */
+  pinned?: boolean;
 }
 
 /** Schedulable step type */
@@ -64,4 +66,6 @@ export const SCHEDULABLE_STEPS: SchedulableStepDef[] = [
   { id: 'build', label: 'Build', requiresMap: false },
   { id: 'regenerate', label: 'Regenerate Project', requiresMap: false },
   { id: 'build_plugin', label: 'Build Plugin', requiresMap: false },
+  { id: 'launch', label: 'Launch Project', requiresMap: false },
+  { id: 'movie_render_queue', label: 'Movie Render Queue', requiresMap: true },
 ];

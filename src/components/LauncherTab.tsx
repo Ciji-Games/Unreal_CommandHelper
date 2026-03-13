@@ -6,14 +6,31 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useProjects } from '../hooks/useProjects';
+import { useScheduledJobs } from '../hooks/useScheduledJobs';
+import { useRunScheduledJob } from '../hooks/useRunScheduledJob';
+import { useProcessMonitor } from '../hooks/useProcessMonitor';
+import { hasBlockingProcessesForJob, getBlockingMessageForJob } from '../utils/jobBlocking';
 import { LauncherCard } from './LauncherCard';
 import { AddProjectButton } from './AddProjectButton';
+import { PinnedJobCard } from './PinnedJobCard';
 import type { ProjectInfo, EngineEntry } from '../types';
 
 export function LauncherTab() {
-  const { projects, addProject, removeProject } = useProjects();
+  const { projects, addProject, removeProject, refresh, loading: projectsLoading } = useProjects();
+  const { jobs } = useScheduledJobs();
+  const { runJob, running: runJobRunning } = useRunScheduledJob();
+  const umapMonitor = useProcessMonitor('umap');
+  const uprojectMonitor = useProcessMonitor('uproject');
+  const regenerateMonitor = useProcessMonitor('regenerate');
+  const monitors = {
+    umap: umapMonitor,
+    uproject: uprojectMonitor,
+    regenerate: regenerateMonitor,
+  };
   const [engines, setEngines] = useState<EngineEntry[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const pinnedJobs = jobs.filter((j) => j.pinned);
 
   useEffect(() => {
     invoke<EngineEntry[]>('get_installed_engine_paths')
@@ -74,7 +91,18 @@ export function LauncherTab() {
 
       {/* Projects */}
       <section>
-        <h2 className="text-lg font-semibold text-amber-500 mb-2">Projects</h2>
+        <div className="flex items-center gap-2 mb-2">
+          <h2 className="text-lg font-semibold text-amber-500">Projects</h2>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={projectsLoading}
+            className="rounded px-2 py-1 text-xs font-medium bg-zinc-700 text-zinc-300 hover:bg-zinc-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            title="Re-scan projects (remove deleted, refresh maps)"
+          >
+            {projectsLoading ? 'Scanning…' : 'Re-scan'}
+          </button>
+        </div>
         <div className="flex flex-wrap gap-x-4 gap-y-2">
           {projects.map((p) => (
             <LauncherCard
@@ -86,6 +114,29 @@ export function LauncherTab() {
           <AddProjectButton onAdd={handleAddProject} />
         </div>
       </section>
+
+      {/* Pinned Jobs - only shown when there are pinned jobs */}
+      {pinnedJobs.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold text-amber-500 mb-2">Pinned Jobs</h2>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            {pinnedJobs.map((job) => (
+              <PinnedJobCard
+                key={job.id}
+                job={job}
+                onRun={(j) => runJob(j, { stopOnFailure: true })}
+                disabled={
+                  runJobRunning ||
+                  job.steps.length === 0 ||
+                  hasBlockingProcessesForJob(job, monitors)
+                }
+                blockingMessage={getBlockingMessageForJob(job, monitors)}
+                running={runJobRunning}
+              />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
