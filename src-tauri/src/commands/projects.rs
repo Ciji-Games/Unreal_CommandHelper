@@ -43,25 +43,7 @@ pub fn analyse_uproject(path: String) -> Result<ProjectInfo, String> {
             .unwrap_or_else(|| "Unknown".to_string())
     };
 
-    // Scan Content/ for *.umap
-    let content_dir = project_dir.join("Content");
-    let maps: Vec<String> = if content_dir.exists() {
-        WalkDir::new(&content_dir)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "umap"))
-            .map(|e| {
-                let rel = e
-                    .path()
-                    .strip_prefix(&content_dir)
-                    .unwrap_or(e.path());
-                let path_str = rel.with_extension("").to_string_lossy().replace('\\', "/");
-                format!("/Game/{}", path_str)
-            })
-            .collect()
-    } else {
-        vec![]
-    };
+    let maps = scan_maps_for_project_dir(project_dir);
 
     // Check for Source/ folder → is_cpp
     let source_dir = project_dir.join("Source");
@@ -112,4 +94,45 @@ pub fn get_project_thumbnail_path(project_path: String) -> Result<Option<String>
     }
 
     Ok(None)
+}
+
+/// Filter a list of paths to only those that exist. Returns paths that exist.
+#[tauri::command]
+pub fn filter_existing_paths(paths: Vec<String>) -> Result<Vec<String>, String> {
+    Ok(paths
+        .into_iter()
+        .filter(|p| Path::new(p).exists())
+        .collect())
+}
+
+fn scan_maps_for_project_dir(project_dir: &Path) -> Vec<String> {
+    let content_dir = project_dir.join("Content");
+    if !content_dir.exists() {
+        return vec![];
+    }
+    WalkDir::new(&content_dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().map_or(false, |ext| ext == "umap"))
+        .map(|e| {
+            let rel = e
+                .path()
+                .strip_prefix(&content_dir)
+                .unwrap_or(e.path());
+            let path_str = rel.with_extension("").to_string_lossy().replace('\\', "/");
+            format!("/Game/{}", path_str)
+        })
+        .collect()
+}
+
+/// Scan Content/ for *.umap files and return map paths in /Game/... format.
+/// Used to refresh maps when project still exists (new or deleted maps).
+#[tauri::command]
+pub fn scan_project_maps(project_path: String) -> Result<Vec<String>, String> {
+    let path = Path::new(&project_path);
+    if !path.exists() || path.extension().map_or(true, |e| e != "uproject") {
+        return Err("Invalid or missing .uproject file".to_string());
+    }
+    let project_dir = path.parent().ok_or("Invalid project path")?;
+    Ok(scan_maps_for_project_dir(project_dir))
 }

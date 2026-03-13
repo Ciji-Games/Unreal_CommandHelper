@@ -64,4 +64,5 @@ export const SCHEDULABLE_STEPS: SchedulableStepDef[] = [
   { id: 'build', label: 'Build', requiresMap: false },
   { id: 'regenerate', label: 'Regenerate Project', requiresMap: false },
   { id: 'build_plugin', label: 'Build Plugin', requiresMap: false },
+  { id: 'launch', label: 'Launch Project', requiresMap: false },
 ];

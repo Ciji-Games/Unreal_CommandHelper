@@ -1,15 +1,20 @@
 /**
  * LauncherCard - Project or Engine card with thumbnail, name, version, Launch/Delete buttons.
  * Mirrors LauncherBtn from UECommandHelper.
+ * Projects: Launch button with dropdown to launch on a specific map.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { ASSETS } from '../config/assets';
 import type { ProjectInfo } from '../types';
 
 const LAUNCH_COOLDOWN_MS = 5000;
+
+function mapDisplayName(mapPath: string): string {
+  return mapPath.split(/[/\\]/).pop() || mapPath;
+}
 
 interface LauncherCardProps {
   project: ProjectInfo;
@@ -20,6 +25,20 @@ interface LauncherCardProps {
 export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCardProps) {
   const [thumbnailSrc, setThumbnailSrc] = useState<string>(ASSETS.ueIcon);
   const [launchDisabled, setLaunchDisabled] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    if (dropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [dropdownOpen]);
 
   useEffect(() => {
     if (isEngine) {
@@ -57,6 +76,27 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
     }
   };
 
+  const handleLaunchWithMap = async (mapPath: string) => {
+    if (launchDisabled) return;
+    const enginePath = project.engineInstallPath;
+    if (!enginePath || enginePath === 'Unknown') {
+      console.error('Engine path not found for this project');
+      return;
+    }
+    setDropdownOpen(false);
+    try {
+      startLaunchCooldown();
+      await invoke('launch_project_with_map', {
+        projectPath: project.projectPath,
+        mapPath,
+        enginePath,
+      });
+    } catch (e) {
+      console.error('Failed to launch with map:', e);
+      setLaunchDisabled(false);
+    }
+  };
+
   const handleLaunchSln = async () => {
     if (launchDisabled) return;
     const slnPath = project.projectPath.replace(/\.uproject$/i, '.sln');
@@ -74,7 +114,7 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
   };
 
   return (
-    <div className="flex flex-col rounded-lg border border-zinc-700 bg-zinc-900/80 overflow-hidden w-36 shrink-0">
+    <div className="flex flex-col rounded-lg border border-zinc-700 bg-zinc-900/80 w-36 shrink-0">
       {/* Card header: square thumbnail (1:1) + overlays */}
       <div className={`relative aspect-square bg-zinc-800 flex items-center justify-center overflow-hidden ${isEngine ? 'p-6' : ''}`}>
         <img
@@ -116,15 +156,66 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
         </h3>
 
         <div className="flex flex-col gap-1">
-          <button
-            type="button"
-            onClick={handleLaunchProject}
-            disabled={launchDisabled}
-            className="w-full px-2 py-1.5 text-xs font-medium rounded bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-600"
-            title={isEngine ? 'Launch Unreal Engine' : `Launch ${project.projectName}`}
-          >
-            {launchDisabled ? 'Launching…' : isEngine ? 'Launch Engine' : 'Launch'}
-          </button>
+          {isEngine ? (
+            <button
+              type="button"
+              onClick={handleLaunchProject}
+              disabled={launchDisabled}
+              className="w-full px-2 py-1.5 text-xs font-medium rounded bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-600"
+              title="Launch Unreal Engine"
+            >
+              {launchDisabled ? 'Launching…' : 'Launch Engine'}
+            </button>
+          ) : project.maps.length > 0 ? (
+            <div className="relative flex" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={handleLaunchProject}
+                disabled={launchDisabled}
+                className="flex-1 px-2 py-1.5 text-xs font-medium rounded-l bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-600 border-r border-amber-700"
+                title={`Launch ${project.projectName}`}
+              >
+                {launchDisabled ? 'Launching…' : 'Launch'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDropdownOpen((o) => !o)}
+                disabled={launchDisabled}
+                className="px-2 py-1.5 rounded-r bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-600"
+                title="Launch on a specific map"
+                aria-label="Open map selection"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {dropdownOpen && (
+                <div className="absolute left-0 right-0 top-full mt-0.5 z-10 rounded border border-zinc-600 bg-zinc-800 shadow-lg max-h-32 overflow-y-auto">
+                  {project.maps.map((mapPath) => (
+                    <button
+                      key={mapPath}
+                      type="button"
+                      onClick={() => handleLaunchWithMap(mapPath)}
+                      className="w-full px-2 py-1.5 text-left text-xs text-zinc-200 hover:bg-amber-600/30 hover:text-white truncate"
+                      title={mapPath}
+                    >
+                      {mapDisplayName(mapPath)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleLaunchProject}
+              disabled={launchDisabled}
+              className="w-full px-2 py-1.5 text-xs font-medium rounded bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-600"
+              title={`Launch ${project.projectName}`}
+            >
+              {launchDisabled ? 'Launching…' : 'Launch'}
+            </button>
+          )}
 
           {project.isCpp && !isEngine && (
             <button

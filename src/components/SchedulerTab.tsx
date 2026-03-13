@@ -19,6 +19,7 @@ import {
   StepParamPanelArchive,
   StepParamPanelRegenerate,
   StepParamPanelPlugin,
+  StepParamPanelLaunch,
 } from './scheduler';
 import type { ScheduledJob, ScheduledStep } from '../types';
 import { SCHEDULABLE_STEPS } from '../types';
@@ -67,6 +68,9 @@ function StepParamPanel({
   }
   if (step.id === 'build_plugin') {
     return <StepParamPanelPlugin value={value} onChange={onChange} />;
+  }
+  if (step.id === 'launch') {
+    return <StepParamPanelLaunch value={value} onChange={onChange} />;
   }
   return null;
 }
@@ -316,6 +320,17 @@ export function SchedulerTab() {
             engineVersion: params.engineVersion ?? '',
             createZip: params.createZip ?? true,
           });
+        } else if (step.id === 'launch') {
+          const mapPath = params.map as string | undefined;
+          if (mapPath && enginePath && enginePath !== 'Unknown') {
+            await invoke('launch_project_with_map', {
+              projectPath,
+              mapPath,
+              enginePath,
+            });
+          } else {
+            await invoke('open_file', { path: projectPath });
+          }
         }
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);

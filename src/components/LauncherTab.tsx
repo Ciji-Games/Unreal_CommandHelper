@@ -11,7 +11,7 @@ import { AddProjectButton } from './AddProjectButton';
 import type { ProjectInfo, EngineEntry } from '../types';
 
 export function LauncherTab() {
-  const { projects, addProject, removeProject } = useProjects();
+  const { projects, addProject, removeProject, refresh, loading: projectsLoading } = useProjects();
   const [engines, setEngines] = useState<EngineEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -74,7 +74,18 @@ export function LauncherTab() {
 
       {/* Projects */}
       <section>
-        <h2 className="text-lg font-semibold text-amber-500 mb-2">Projects</h2>
+        <div className="flex items-center gap-2 mb-2">
+          <h2 className="text-lg font-semibold text-amber-500">Projects</h2>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={projectsLoading}
+            className="rounded px-2 py-1 text-xs font-medium bg-zinc-700 text-zinc-300 hover:bg-zinc-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            title="Re-scan projects (remove deleted, refresh maps)"
+          >
+            {projectsLoading ? 'Scanning…' : 'Re-scan'}
+          </button>
+        </div>
         <div className="flex flex-wrap gap-x-4 gap-y-2">
           {projects.map((p) => (
             <LauncherCard
