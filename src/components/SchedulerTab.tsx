@@ -220,51 +220,52 @@ export function SchedulerTab() {
     jobWithBlocking && hasBlockingProcessesForJob(jobWithBlocking, monitors);
 
   return (
-    <div className="flex flex-col gap-4 flex-1 min-h-0 overflow-hidden">
-      <div className="shrink-0">
-        <h1 className="text-2xl font-bold text-white">Scheduler</h1>
-        <p className="text-zinc-400 text-sm">
+    <div className="flex flex-col gap-6 flex-1 min-h-0 overflow-hidden">
+      <header className="space-y-1 shrink-0">
+        <h1 className="text-xl font-semibold text-slate-100 tracking-tight">Scheduler</h1>
+        <p className="text-slate-400 text-sm">
           Create named batch jobs as sequences of tools. Run jobs to execute steps in order.
         </p>
         {showBlockingBanner && (
-          <div className="mt-2 rounded-lg border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+          <div className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100/90">
             <p className="font-medium">Cannot run: Unreal Engine or related tools are running</p>
-            <p className="mt-1 text-amber-200/90">
+            <p className="mt-1 text-amber-100/80">
               Close Unreal Editor, Visual Studio, or Rider before running jobs.
             </p>
           </div>
         )}
-      </div>
+      </header>
 
       <div
-        className={`flex gap-4 min-h-0 overflow-hidden ${
+        className={`flex gap-4 min-h-0 overflow-hidden flex-1 ${
           showOutputLog ? 'flex-[4_1_0]' : 'flex-[6_1_0]'
         }`}
       >
         {/* Left: Job list */}
         <div className="w-64 shrink-0 flex flex-col">
-          <nav className="flex flex-col gap-1 rounded-lg overflow-hidden bg-zinc-900/80 border border-zinc-800">
-            <div className="px-4 py-2 rounded-t bg-zinc-800/50 border-b border-zinc-700">
-              <h3 className="font-semibold text-white text-sm">Jobs</h3>
+          <nav className="flex flex-col gap-px rounded-lg overflow-hidden bg-slate-800/50 border border-slate-600/60">
+            <div className="px-4 py-2.5 rounded-t-lg bg-slate-700/40 border-b border-slate-600/60">
+              <h3 className="font-medium text-slate-200 text-sm">Jobs</h3>
             </div>
             {loading ? (
-              <p className="px-4 py-3 text-zinc-400 text-sm">Loading...</p>
+              <p className="px-4 py-3 text-slate-400 text-sm">Loading...</p>
             ) : jobs.length === 0 ? (
-              <p className="px-4 py-3 text-zinc-400 text-sm">No jobs yet</p>
+              <p className="px-4 py-3 text-slate-400 text-sm">No jobs yet</p>
             ) : (
               jobs.map((job) => (
                 <div
                   key={job.id}
-                  className={`flex items-center justify-between gap-2 px-4 py-2 border-b border-zinc-800 last:border-b-0 ${
+                  className={`flex items-center justify-between gap-2 px-4 py-2 border-b border-slate-700/50 last:border-b-0 ${
                     selectedJobId === job.id
-                      ? 'bg-amber-600/20 text-amber-100'
-                      : 'text-zinc-300 hover:bg-zinc-800'
+                      ? 'bg-sky-600/20 text-sky-100'
+                      : 'text-slate-300 hover:bg-slate-700/50'
                   }`}
                 >
                   <button
                     type="button"
-                    onClick={() => setSelectedJobId(job.id)}
-                    className="flex-1 text-left min-w-0 truncate"
+                    onClick={() => !editingJob && setSelectedJobId(job.id)}
+                    disabled={!!editingJob}
+                    className={`flex-1 text-left min-w-0 truncate ${editingJob ? 'cursor-not-allowed opacity-70' : ''}`}
                   >
                     {job.name}
                   </button>
@@ -276,8 +277,8 @@ export function SchedulerTab() {
                     }}
                     className={`shrink-0 p-1 rounded transition-colors ${
                       job.pinned
-                        ? 'text-amber-500 hover:text-amber-400'
-                        : 'text-zinc-500 hover:text-zinc-400'
+                        ? 'text-sky-400 hover:text-sky-300'
+                        : 'text-slate-500 hover:text-slate-400'
                     }`}
                     title={job.pinned ? 'Unpin from launcher' : 'Pin to launcher'}
                     aria-label={job.pinned ? 'Unpin' : 'Pin'}
@@ -286,17 +287,22 @@ export function SchedulerTab() {
                       <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
                     </svg>
                   </button>
-                  <span className="text-xs text-zinc-500 shrink-0">
+                  <span className="text-xs text-slate-500 shrink-0">
                     {job.steps.length} steps
                   </span>
                 </div>
               ))
             )}
-            <div className="p-2 border-t border-zinc-700">
+            <div className="p-2 border-t border-slate-600/60">
               <button
                 type="button"
                 onClick={handleCreate}
-                className="w-full rounded px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium transition-colors"
+                disabled={!!editingJob}
+                className={`w-full rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                  editingJob
+                    ? 'bg-slate-600/60 text-slate-500 cursor-not-allowed'
+                    : 'bg-sky-600/80 hover:bg-sky-500/80 text-white'
+                }`}
               >
                 Create Job
               </button>
@@ -305,7 +311,7 @@ export function SchedulerTab() {
         </div>
 
         {/* Right: Job editor */}
-        <div className="flex-1 min-w-0 min-h-0 rounded-lg border border-zinc-800 bg-zinc-900/50 p-6 overflow-y-auto">
+        <div className="flex-1 min-w-0 min-h-0 rounded-lg border border-slate-600/60 bg-slate-800/30 p-6 overflow-y-auto">
           {editingJob ? (
             <ToolGroup
               title="Edit Job"
@@ -313,25 +319,25 @@ export function SchedulerTab() {
             >
               <div className="flex flex-col gap-4">
                 <div>
-                  <label className="block text-sm text-zinc-300 mb-1">Job name</label>
+                  <label className="block text-sm text-slate-300 mb-1">Job name</label>
                   <input
                     type="text"
                     value={editingJob.name}
                     onChange={(e) => handleEditName(e.target.value)}
-                    className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
+                    className="w-full rounded-md bg-slate-700/50 border border-slate-600 text-slate-100 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/30"
                     placeholder="e.g. HLOD Pipeline"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm text-zinc-300 mb-2">Add step</label>
+                  <label className="block text-sm text-slate-300 mb-2">Add step</label>
                   <div className="flex flex-wrap gap-2">
                     {SCHEDULABLE_STEPS.map((s) => (
                       <button
                         key={s.id}
                         type="button"
                         onClick={() => handleAddStep(s.id)}
-                        className="rounded px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white text-sm"
+                        className="rounded-md px-3 py-1.5 bg-slate-700/60 hover:bg-slate-600/60 text-slate-200 text-sm transition-colors"
                       >
                         + {s.label}
                       </button>
@@ -340,9 +346,9 @@ export function SchedulerTab() {
                 </div>
 
                 <div>
-                  <label className="block text-sm text-zinc-300 mb-2">Steps</label>
+                  <label className="block text-sm text-slate-300 mb-2">Steps</label>
                   {editingJob.steps.length === 0 ? (
-                    <p className="text-zinc-500 text-sm">No steps. Add steps above.</p>
+                    <p className="text-slate-500 text-sm">No steps. Add steps above.</p>
                   ) : (
                     <div className="flex flex-col gap-2">
                       {editingJob.steps.map((step, index) => {
@@ -350,14 +356,14 @@ export function SchedulerTab() {
                         return (
                           <div
                             key={`${step.id}-${index}`}
-                            className="rounded-lg border border-zinc-700 bg-zinc-800/50 overflow-hidden"
+                            className="rounded-lg border border-slate-600/60 bg-slate-700/30 overflow-hidden"
                           >
                             <button
                               type="button"
                               onClick={() => toggleStepExpanded(index)}
-                              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-zinc-800/80 transition-colors"
+                              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-700/50 transition-colors"
                             >
-                              <span className="font-medium text-white">
+                              <span className="font-medium text-slate-100">
                                 {index + 1}. {getStepLabel(step.id)}
                               </span>
                               <div className="flex items-center gap-2">
@@ -368,7 +374,7 @@ export function SchedulerTab() {
                                     handleMoveStep(index, 'up');
                                   }}
                                   disabled={index === 0}
-                                  className="rounded px-2 py-1 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-white text-xs"
+                                  className="rounded px-2 py-1 bg-slate-600/80 hover:bg-slate-500/80 disabled:opacity-50 text-slate-200 text-xs"
                                 >
                                   ↑
                                 </button>
@@ -379,7 +385,7 @@ export function SchedulerTab() {
                                     handleMoveStep(index, 'down');
                                   }}
                                   disabled={index === editingJob!.steps.length - 1}
-                                  className="rounded px-2 py-1 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-white text-xs"
+                                  className="rounded px-2 py-1 bg-slate-600/80 hover:bg-slate-500/80 disabled:opacity-50 text-slate-200 text-xs"
                                 >
                                   ↓
                                 </button>
@@ -389,12 +395,12 @@ export function SchedulerTab() {
                                     e.stopPropagation();
                                     handleRemoveStep(index);
                                   }}
-                                  className="rounded px-2 py-1 bg-zinc-700 hover:bg-red-600/80 text-white text-xs"
+                                  className="rounded px-2 py-1 bg-slate-600/80 hover:bg-red-600/70 text-slate-200 text-xs"
                                 >
                                   Remove
                                 </button>
                                 <span
-                                  className={`inline-block text-zinc-400 text-xs transition-transform ${
+                                  className={`inline-block text-slate-400 text-xs transition-transform ${
                                     isExpanded ? 'rotate-180' : ''
                                   }`}
                                 >
@@ -403,7 +409,7 @@ export function SchedulerTab() {
                               </div>
                             </button>
                             {isExpanded && (
-                              <div className="px-4 pb-4 pt-0 border-t border-zinc-700">
+                              <div className="px-4 pb-4 pt-0 border-t border-slate-600/60">
                                 <StepParamPanel
                                   step={step}
                                   value={step.params}
@@ -422,14 +428,14 @@ export function SchedulerTab() {
                   <button
                     type="button"
                     onClick={handleSave}
-                    className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-medium"
+                    className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 text-white font-medium transition-colors"
                   >
                     Save
                   </button>
                   <button
                     type="button"
                     onClick={handleCancelEdit}
-                    className="rounded px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white font-medium"
+                    className="rounded-md px-4 py-2 bg-slate-600/80 hover:bg-slate-500/80 text-slate-200 font-medium transition-colors"
                   >
                     Cancel
                   </button>
@@ -437,8 +443,8 @@ export function SchedulerTab() {
               </div>
             </ToolGroup>
           ) : selectedJob ? (
-            <div className="text-zinc-400">
-              <p className="mb-2 text-white font-medium">{selectedJob.name}</p>
+            <div className="text-slate-400">
+              <p className="mb-2 text-slate-100 font-medium">{selectedJob.name}</p>
               <p className="text-sm mb-4">
                 {selectedJob.steps.length} steps:{' '}
                 {selectedJob.steps.map((s) => getStepLabel(s.id)).join(' → ')}
@@ -447,7 +453,7 @@ export function SchedulerTab() {
                 <button
                   type="button"
                   onClick={() => handleEdit(selectedJob)}
-                  className="rounded px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white text-sm"
+                  className="rounded-md px-3 py-1.5 bg-slate-600/80 hover:bg-slate-500/80 text-slate-200 text-sm transition-colors"
                 >
                   Edit
                 </button>
@@ -459,7 +465,7 @@ export function SchedulerTab() {
                     hasBlockingProcessesForJob(selectedJob, monitors) ||
                     runJobRunning
                   }
-                  className={`rounded px-3 py-1.5 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white ${
+                  className={`rounded-md px-3 py-1.5 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600/80 disabled:text-slate-500 text-white text-sm transition-colors ${
                     getBlockingMessageForJob(selectedJob, monitors) ? 'text-xs' : 'text-sm'
                   }`}
                 >
@@ -470,34 +476,34 @@ export function SchedulerTab() {
                 <button
                   type="button"
                   onClick={() => removeJob(selectedJob.id).then(() => setSelectedJobId(null))}
-                  className="rounded px-3 py-1.5 bg-zinc-700 hover:bg-red-600/80 text-white text-sm"
+                  className="rounded-md px-3 py-1.5 bg-slate-600/80 hover:bg-red-600/70 text-slate-200 text-sm transition-colors"
                 >
                   Delete
                 </button>
               </div>
             </div>
           ) : (
-            <p className="text-zinc-500">Select or create a job to get started.</p>
+            <p className="text-slate-500">Select or create a job to get started.</p>
           )}
         </div>
       </div>
 
       {/* Output Log - hidden by default, shown when job runs or user toggles */}
       <div
-        className={`flex flex-col min-w-0 transition-all ${
+        className={`flex flex-col min-w-0 transition-all overflow-hidden rounded-lg border border-slate-600/60 bg-slate-800/40 ${
           showOutputLog ? 'flex-[6_1_0] min-h-0' : 'shrink-0'
         }`}
       >
         <button
           type="button"
           onClick={() => setShowOutputLog((prev) => !prev)}
-          className="flex items-center justify-between w-full px-4 py-2 rounded-lg border border-zinc-700 bg-zinc-800/50 hover:bg-zinc-800 text-left"
+          className="flex items-center justify-between w-full px-4 py-2 hover:bg-slate-700/50 text-left transition-colors"
         >
-          <span className="text-sm font-medium text-zinc-300">
+          <span className="text-sm font-medium text-slate-300">
             Output Log
           </span>
           <span
-            className={`inline-block text-zinc-400 text-xs transition-transform ${
+            className={`inline-block text-slate-400 text-xs transition-transform ${
               showOutputLog ? 'rotate-180' : ''
             }`}
           >
@@ -505,7 +511,7 @@ export function SchedulerTab() {
           </span>
         </button>
         {showOutputLog && (
-          <div className="flex-1 min-h-0 flex flex-col min-w-0 overflow-hidden mt-2">
+          <div className="flex-1 min-h-0 flex flex-col min-w-0 overflow-hidden border-t border-slate-600/60 p-4">
             <OutputLogPanel />
           </div>
         )}
@@ -513,20 +519,20 @@ export function SchedulerTab() {
 
       {/* Run dialog */}
       {runDialogJob && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="rounded-lg bg-zinc-900 border border-zinc-700 p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-white mb-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="rounded-lg bg-slate-800 border border-slate-600 p-6 w-full max-w-md shadow-xl">
+            <h3 className="text-lg font-semibold text-slate-100 mb-4">
               Run: {runDialogJob.name}
             </h3>
-            <p className="text-zinc-400 text-sm mb-4">
+            <p className="text-slate-400 text-sm mb-4">
               {runDialogJob.steps.length} steps will run in sequence.
             </p>
-            <label className="flex items-center gap-2 text-zinc-300 text-sm cursor-pointer mb-4">
+            <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer mb-4">
               <input
                 type="checkbox"
                 checked={stopOnFailure}
                 onChange={(e) => setStopOnFailure(e.target.checked)}
-                className="rounded border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
+                className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
               />
               Stop on first failure
             </label>
@@ -540,7 +546,7 @@ export function SchedulerTab() {
                     ? hasBlockingProcessesForJob(runDialogJob, monitors)
                     : false)
                 }
-                className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium"
+                className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
               >
                 {runJobRunning
                   ? 'Running...'
@@ -552,7 +558,7 @@ export function SchedulerTab() {
                 type="button"
                 onClick={handleCancelRun}
                 disabled={runJobRunning}
-                className="rounded px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white font-medium"
+                className="rounded-md px-4 py-2 bg-slate-600 hover:bg-slate-500 text-slate-200 font-medium transition-colors"
               >
                 Cancel
               </button>

@@ -1,7 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --color-accent: #dda209;
+  /* Epic-inspired dark launcher palette - subtle, professional */
+  --color-bg: #0a0e17;
+  --color-bg-elevated: #111827;
+  --color-bg-card: #1a2234;
+  --color-border: #2d3748;
+  --color-border-subtle: #1e293b;
+  --color-accent: #38bdf8;
+  --color-accent-muted: #0ea5e9;
+  --color-accent-hover: #7dd3fc;
+  --color-text: #f1f5f9;
+  --color-text-muted: #94a3b8;
+  --color-text-dim: #64748b;
+}
+
+html {
+  color-scheme: dark;
 }
 
 html,
@@ -13,8 +28,8 @@ body,
 
 body {
   min-height: 100vh;
-  background-color: #09090b; /* zinc-950 */
-  color: #fafafa;
+  background-color: var(--color-bg);
+  color: var(--color-text);
   display: flex;
   flex-direction: column;
 }
@@ -31,8 +46,8 @@ body {
     45deg,
     transparent,
     transparent 4px,
-    rgba(255, 255, 255, 0.35) 4px,
-    rgba(255, 255, 255, 0.35) 8px
+    rgba(255, 255, 255, 0.2) 4px,
+    rgba(255, 255, 255, 0.2) 8px
   );
   background-size: 12px 12px;
   animation: progress-shimmer 1.5s linear infinite;

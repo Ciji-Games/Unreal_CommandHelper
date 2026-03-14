@@ -11,6 +11,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../../hooks/useProjects';
 import type { ProjectInfo } from '../../types';
 import { getProjectDisplayLabel } from '../../utils/project';
+import { Select } from '../Select';
 
 const PLATFORMS = ['Win64', 'Linux', 'Mac'];
 const PACKAGE_CONFIGS = ['Development', 'Shipping'];
@@ -75,58 +76,42 @@ export function StepParamPanelUProject({ stepId, value, onChange }: StepParamPan
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <label className="block text-sm text-zinc-300 mb-1">Project</label>
-        <select
+        <label className="block text-sm text-slate-300 mb-1">Project</label>
+        <Select
           value={projectPath}
-          onChange={(e) => handleProjectChange(e.target.value)}
+          onChange={(v) => handleProjectChange(v)}
+          placeholder={projects.length === 0 ? 'No projects' : 'Select project'}
           disabled={projects.length === 0}
-          className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-        >
-          <option value="">{projects.length === 0 ? 'No projects' : 'Select project'}</option>
-          {projects.map((p) => (
-            <option key={p.projectPath} value={p.projectPath}>
-              {getProjectDisplayLabel(p)}
-            </option>
-          ))}
-          <option value="__browse__">Browse...</option>
-        </select>
+          options={[
+            ...projects.map((p) => ({ value: p.projectPath, label: getProjectDisplayLabel(p) })),
+            { value: '__browse__', label: 'Browse...' },
+          ]}
+        />
       </div>
       {(stepId === 'cook' || stepId === 'package') && (
         <div>
-          <label className="block text-sm text-zinc-300 mb-1">Platform</label>
-          <select
+          <label className="block text-sm text-slate-300 mb-1">Platform</label>
+          <Select
             value={platform}
-            onChange={(e) => onChange({ ...value, platform: e.target.value })}
+            onChange={(v) => onChange({ ...value, platform: v })}
             disabled={!projectPath}
-            className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:opacity-50"
-          >
-            {PLATFORMS.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+            options={PLATFORMS.map((p) => ({ value: p, label: p }))}
+          />
         </div>
       )}
       {stepId === 'package' && (
         <>
           <div>
-            <label className="block text-sm text-zinc-300 mb-1">Package Config</label>
-            <select
+            <label className="block text-sm text-slate-300 mb-1">Package Config</label>
+            <Select
               value={packageConfig}
-              onChange={(e) => onChange({ ...value, config: e.target.value })}
+              onChange={(v) => onChange({ ...value, config: v })}
               disabled={!projectPath}
-              className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:opacity-50"
-            >
-              {PACKAGE_CONFIGS.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+              options={PACKAGE_CONFIGS.map((c) => ({ value: c, label: c }))}
+            />
           </div>
           <div>
-            <label className="block text-sm text-zinc-300 mb-1">Output path</label>
+            <label className="block text-sm text-slate-300 mb-1">Output path</label>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -134,13 +119,13 @@ export function StepParamPanelUProject({ stepId, value, onChange }: StepParamPan
                 onChange={(e) => onChange({ ...value, outputPath: e.target.value })}
                 placeholder="{project}/Saved/StagedBuilds"
                 disabled={!projectPath}
-                className="flex-1 rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:opacity-50"
+                className="flex-1 rounded-md bg-slate-700/50 border border-slate-600 text-slate-100 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/30 disabled:opacity-50"
               />
               <button
                 type="button"
                 onClick={handleBrowseOutputPath}
                 disabled={!projectPath}
-                className="rounded px-3 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white text-sm font-medium transition-colors"
+                className="rounded px-3 py-2 bg-slate-600/80 hover:bg-slate-500/80 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium transition-colors"
               >
                 Browse
               </button>

@@ -117,16 +117,16 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
   /* Compact engine card: same layout as non-compact but without thumbnail */
   if (isEngine) {
     return (
-      <div className="flex flex-col rounded-lg border border-zinc-700 bg-zinc-900/80 w-36 shrink-0">
+      <div className="flex flex-col rounded-lg border border-slate-600/60 bg-slate-800/50 w-36 shrink-0 shadow-sm hover:border-slate-500/50 transition-colors">
         <div className="p-3 space-y-2">
-          <h3 className="font-semibold text-white truncate text-sm text-center" title={project.projectName}>
+          <h3 className="font-medium text-slate-100 truncate text-sm text-center" title={project.projectName}>
             {project.projectName}
           </h3>
           <button
             type="button"
             onClick={handleLaunchProject}
             disabled={launchDisabled}
-            className="w-full px-2 py-1.5 text-xs font-medium rounded bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-600"
+            className="w-full px-2 py-1.5 text-xs font-medium rounded-md bg-sky-600/80 hover:bg-sky-500/80 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-sky-600/80"
             title="Launch Unreal Engine"
           >
             {launchDisabled ? 'Launching…' : 'Launch'}
@@ -137,20 +137,20 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
   }
 
   return (
-    <div className="flex flex-col rounded-lg border border-zinc-700 bg-zinc-900/80 w-36 shrink-0">
+    <div className="relative flex flex-col rounded-lg border border-slate-600/60 bg-slate-800/50 w-36 shrink-0 shadow-sm hover:border-slate-500/50 transition-colors">
       {/* Card header: square thumbnail (1:1) + overlays */}
-      <div className="relative aspect-square bg-zinc-800 flex items-center justify-center overflow-hidden">
+      <div className="relative aspect-square w-full bg-slate-700/50 flex items-center justify-center overflow-hidden rounded-t-lg">
         <img
           src={thumbnailSrc}
           alt={project.projectName}
-          className="w-full h-full object-contain"
+          className="absolute inset-0 w-full h-full object-cover"
         />
         {/* Top left: trash icon (when deletable) */}
         {onRemove && (
           <button
             type="button"
             onClick={handleDelete}
-            className="absolute top-1 left-1 p-1 rounded text-zinc-400 hover:text-red-400 hover:bg-zinc-900/80 transition-colors"
+            className="absolute top-1.5 left-1.5 p-1 rounded-md text-slate-400 hover:text-red-400 hover:bg-slate-900/80 transition-colors"
             title="Remove this project from the list"
             aria-label="Remove project"
           >
@@ -161,18 +161,18 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
         )}
         {/* Top right: C++ icon (when C++) */}
         {project.isCpp && (
-          <span className="absolute top-1 right-1 p-1 rounded bg-zinc-900/80" title="C++ project">
+          <span className="absolute top-1.5 right-1.5 p-1 rounded-md bg-slate-900/80" title="C++ project">
             <img src={ASSETS.cppLogo} alt="C++" className="w-4 h-4" />
           </span>
         )}
         {/* Bottom right: short engine version */}
-        <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-xs font-medium text-zinc-300 bg-zinc-900/90">
+        <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded text-xs font-medium text-slate-300 bg-slate-900/90">
           {project.engineVersion}
         </span>
       </div>
 
-      <div className="p-3 space-y-2">
-        <h3 className="font-semibold text-white truncate text-sm text-center" title={project.projectName}>
+      <div className="p-2.5 space-y-1.5">
+        <h3 className="font-medium text-slate-100 truncate text-sm text-center" title={project.projectName}>
           {project.projectName}
         </h3>
 
@@ -183,7 +183,7 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
                 type="button"
                 onClick={handleLaunchProject}
                 disabled={launchDisabled}
-                className="flex-1 px-2 py-1.5 text-xs font-medium rounded-l bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-600 border-r border-amber-700"
+                className="flex-1 px-2 py-1.5 text-xs font-medium rounded-l-md bg-sky-600/80 hover:bg-sky-500/80 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-sky-600/80 border-r border-sky-500/40"
                 title={`Launch ${project.projectName}`}
               >
                 {launchDisabled ? 'Launching…' : 'Launch'}
@@ -192,7 +192,7 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
                 type="button"
                 onClick={() => setDropdownOpen((o) => !o)}
                 disabled={launchDisabled}
-                className="px-2 py-1.5 rounded-r bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-600"
+                className="px-2 py-1.5 rounded-r-md bg-sky-600/80 hover:bg-sky-500/80 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-sky-600/80"
                 title="Launch on a specific map"
                 aria-label="Open map selection"
               >
@@ -201,13 +201,13 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
                 </svg>
               </button>
               {dropdownOpen && (
-                <div className="absolute left-0 right-0 top-full mt-0.5 z-10 rounded border border-zinc-600 bg-zinc-800 shadow-lg max-h-32 overflow-y-auto">
+                <div className="absolute left-0 right-0 top-full mt-0.5 z-50 rounded-md border border-slate-600/80 bg-[var(--color-bg-card)] shadow-xl max-h-32 overflow-y-auto">
                   {project.maps.map((mapPath) => (
                     <button
                       key={mapPath}
                       type="button"
                       onClick={() => handleLaunchWithMap(mapPath)}
-                      className="w-full px-2 py-1.5 text-left text-xs text-zinc-200 hover:bg-amber-600/30 hover:text-white truncate"
+                      className="w-full px-2 py-1.5 text-left text-xs text-slate-200 hover:bg-slate-700/80 hover:text-slate-100 truncate"
                       title={mapPath}
                     >
                       {mapDisplayName(mapPath)}
@@ -221,7 +221,7 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
               type="button"
               onClick={handleLaunchProject}
               disabled={launchDisabled}
-              className="w-full px-2 py-1.5 text-xs font-medium rounded bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-600"
+              className="w-full px-2 py-1.5 text-xs font-medium rounded-md bg-sky-600/80 hover:bg-sky-500/80 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-sky-600/80"
               title={`Launch ${project.projectName}`}
             >
               {launchDisabled ? 'Launching…' : 'Launch'}
@@ -233,7 +233,7 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
               type="button"
               onClick={handleLaunchSln}
               disabled={launchDisabled}
-              className="w-full px-2 py-1.5 text-xs font-medium rounded bg-zinc-600 hover:bg-zinc-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-zinc-600"
+              className="w-full px-2 py-1.5 text-xs font-medium rounded-md bg-slate-600/80 hover:bg-slate-500/80 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-600/80"
               title="Open the solution"
             >
               Open .sln

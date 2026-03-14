@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { ToolGroup } from './ToolGroup';
+import { Select } from './Select';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../hooks/useProjects';
@@ -119,35 +120,27 @@ export function RegenerateProjectPanel() {
     >
       <div className="flex flex-col gap-3">
         <div>
-          <label className="block text-sm text-zinc-300 mb-1">Project (C++ only)</label>
-          <select
+          <label className="block text-sm text-slate-300 mb-1">Project (C++ only)</label>
+          <Select
             value={selectedPath}
-            onChange={(e) => handleProjectChange(e.target.value)}
-            className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-          >
-            <option value="">
-              {cppProjects.length === 0
-                ? 'No C++ projects available'
-                : 'Select a project'}
-            </option>
-            {cppProjects.map((p) => (
-              <option key={p.projectPath} value={p.projectPath}>
-                {getProjectDisplayLabel(p)}
-              </option>
-            ))}
-            <option value="__browse__">Browse new project...</option>
-          </select>
+            onChange={(v) => handleProjectChange(v)}
+            placeholder={cppProjects.length === 0 ? 'No C++ projects available' : 'Select a project'}
+            options={[
+              ...cppProjects.map((p) => ({ value: p.projectPath, label: getProjectDisplayLabel(p) })),
+              { value: '__browse__', label: 'Browse new project...' },
+            ]}
+          />
           {cppProjects.length === 0 && (
-            <p className="mt-1 text-sm text-amber-400/90">
+            <p className="mt-1 text-sm text-sky-400/90">
               Add a C++ project (with a Source folder) to use Regenerate.
             </p>
           )}
         </div>
 
         {hasBlockingProcesses && (
-          <div className="rounded-lg border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100/90">
             <p className="font-medium">Cannot regenerate: The following programs are running</p>
-            <p className="mt-1 text-amber-200/90">
+            <p className="mt-1 text-amber-100/80">
               {blockingProcesses.map((p) => p.displayName).join(', ')} — close them before
               regenerating.
             </p>
@@ -155,30 +148,30 @@ export function RegenerateProjectPanel() {
         )}
 
         <div className="flex flex-wrap gap-4">
-          <label className="flex items-center gap-2 text-zinc-300 text-sm cursor-pointer">
+          <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
             <input
               type="checkbox"
               checked={buildAfter}
               onChange={(e) => setBuildAfter(e.target.checked)}
-              className="rounded border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
+              className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
             />
             Build Project
           </label>
-          <label className="flex items-center gap-2 text-zinc-300 text-sm cursor-pointer">
+          <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
             <input
               type="checkbox"
               checked={openProjectAfter}
               onChange={(e) => setOpenProjectAfter(e.target.checked)}
-              className="rounded border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
+              className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
             />
             Launch Project
           </label>
-          <label className="flex items-center gap-2 text-zinc-300 text-sm cursor-pointer">
+          <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
             <input
               type="checkbox"
               checked={openSlnAfter}
               onChange={(e) => setOpenSlnAfter(e.target.checked)}
-              className="rounded border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
+              className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
             />
             Open .sln
           </label>
@@ -194,7 +187,7 @@ export function RegenerateProjectPanel() {
             cppProjects.length === 0 ||
             hasBlockingProcesses
           }
-          className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors"
+          className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
         >
           {running ? 'Regenerating...' : 'Regenerate'}
         </button>

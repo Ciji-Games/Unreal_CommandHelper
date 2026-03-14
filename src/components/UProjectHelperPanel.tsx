@@ -11,6 +11,7 @@ import { useLog } from '../contexts/LogContext';
 import { useProgress } from '../contexts/ProgressContext';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
 import { ToolGroup } from './ToolGroup';
+import { Select } from './Select';
 import type { ProjectInfo } from '../types';
 import { getProjectDisplayLabel } from '../utils/project';
 
@@ -228,59 +229,41 @@ export function UProjectHelperPanel() {
     >
       <div className="flex flex-col gap-3">
         <div>
-          <label className="block text-sm text-zinc-300 mb-1">Project</label>
-          <select
+          <label className="block text-sm text-slate-300 mb-1">Project</label>
+          <Select
             value={selectedProjectPath}
-            onChange={(e) => handleProjectChange(e.target.value)}
-            className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-          >
-            <option value="">
-              {projects.length === 0 ? 'No projects available' : 'Select a project'}
-            </option>
-            {projects.map((p) => (
-              <option key={p.projectPath} value={p.projectPath}>
-                {getProjectDisplayLabel(p)}
-              </option>
-            ))}
-            <option value="__browse__">Browse new project...</option>
-          </select>
+            onChange={(v) => handleProjectChange(v)}
+            placeholder={projects.length === 0 ? 'No projects available' : 'Select a project'}
+            options={[
+              ...projects.map((p) => ({ value: p.projectPath, label: getProjectDisplayLabel(p) })),
+              { value: '__browse__', label: 'Browse new project...' },
+            ]}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm text-zinc-300 mb-1">Platform</label>
-            <select
+            <label className="block text-sm text-slate-300 mb-1">Platform</label>
+            <Select
               value={platform}
-              onChange={(e) => setPlatform(e.target.value)}
+              onChange={(v) => setPlatform(v)}
               disabled={!selectedProjectPath}
-              className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:opacity-50"
-            >
-              {PLATFORMS.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
+              options={PLATFORMS.map((p) => ({ value: p, label: p }))}
+            />
           </div>
           <div>
-            <label className="block text-sm text-zinc-300 mb-1">Package Config</label>
-            <select
+            <label className="block text-sm text-slate-300 mb-1">Package Config</label>
+            <Select
               value={packageConfig}
-              onChange={(e) => setPackageConfig(e.target.value)}
+              onChange={(v) => setPackageConfig(v)}
               disabled={!selectedProjectPath}
-              className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:opacity-50"
-            >
-              {PACKAGE_CONFIGS.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+              options={PACKAGE_CONFIGS.map((c) => ({ value: c, label: c }))}
+            />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm text-zinc-300 mb-1">
+          <label className="block text-sm text-slate-300 mb-1">
             Output path (Package: directory, Archive: directory or .zip file)
           </label>
           <div className="flex gap-2">
@@ -290,13 +273,13 @@ export function UProjectHelperPanel() {
               onChange={(e) => setOutputPath(e.target.value)}
               placeholder="{project}/Saved/StagedBuilds or path/ProjectName.zip"
               disabled={!selectedProjectPath}
-              className="flex-1 rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:opacity-50"
+              className="flex-1 rounded-md bg-slate-700/50 border border-slate-600 text-slate-100 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/30 disabled:opacity-50"
             />
             <button
               type="button"
               onClick={handleBrowseOutputPath}
               disabled={!selectedProjectPath}
-              className="rounded px-3 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white text-sm font-medium transition-colors"
+              className="rounded-md px-3 py-2 bg-slate-600/80 hover:bg-slate-500/80 disabled:bg-slate-700 disabled:text-slate-500 text-slate-200 text-sm font-medium transition-colors"
             >
               Browse
             </button>
@@ -304,9 +287,9 @@ export function UProjectHelperPanel() {
         </div>
 
         {hasBlockingProcesses && (
-          <div className="rounded-lg border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100/90">
             <p className="font-medium">Cannot run: Unreal Engine is running</p>
-            <p className="mt-1 text-amber-200/90">
+            <p className="mt-1 text-amber-100/80">
               {blockingProcesses.map((p) => p.displayName).join(', ')} — close it before running
               Cook, Package, Archive, or Build.
             </p>
@@ -314,7 +297,7 @@ export function UProjectHelperPanel() {
         )}
 
         {selectedProject && !selectedProject.isCpp && (
-          <p className="text-sm text-amber-400/90">
+          <p className="text-sm text-sky-400/90">
             Build is disabled: this project has no C++ code (no Source folder). Cook and Package
             are available.
           </p>
@@ -325,7 +308,7 @@ export function UProjectHelperPanel() {
             type="button"
             onClick={runCook}
             disabled={!canRun}
-            className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors"
+            className="rounded px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
           >
             Cook
           </button>
@@ -333,7 +316,7 @@ export function UProjectHelperPanel() {
             type="button"
             onClick={runPackage}
             disabled={!canRun}
-            className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors"
+            className="rounded px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
           >
             Package
           </button>
@@ -341,7 +324,7 @@ export function UProjectHelperPanel() {
             type="button"
             onClick={runArchive}
             disabled={!canRun}
-            className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors"
+            className="rounded px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
           >
             Archive
           </button>
@@ -349,7 +332,7 @@ export function UProjectHelperPanel() {
             type="button"
             onClick={runBuild}
             disabled={!canBuild}
-            className="rounded px-4 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-medium transition-colors"
+            className="rounded-md px-4 py-2 bg-slate-600/80 hover:bg-slate-500/80 disabled:bg-slate-700 disabled:text-slate-500 text-slate-200 font-medium transition-colors"
           >
             Build
           </button>

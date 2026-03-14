@@ -62,19 +62,21 @@ export function LauncherTab() {
   });
 
   return (
-    <div className="space-y-2">
-      <h1 className="text-2xl font-bold text-white">UE Launcher</h1>
-      <p className="text-zinc-400 text-sm">
-        Unreal Engine project launcher and toolbox
-      </p>
+    <div className="space-y-8">
+      <header className="space-y-1">
+        <h1 className="text-xl font-semibold text-slate-100 tracking-tight">UE Launcher</h1>
+        <p className="text-slate-400 text-sm">
+          Unreal Engine project launcher and toolbox
+        </p>
+      </header>
 
       {/* Engine Versions */}
-      <section>
-        <h2 className="text-lg font-semibold text-amber-500 mb-2">Engine Versions</h2>
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium text-slate-300 uppercase tracking-wider">Engine Versions</h2>
         {loading ? (
-          <p className="text-zinc-500 text-sm">Loading engines...</p>
+          <p className="text-slate-500 text-sm">Loading engines...</p>
         ) : (
-          <div className="flex flex-wrap gap-x-4 gap-y-2">
+          <div className="flex flex-wrap gap-3">
             {engines.map((e) => (
               <LauncherCard
                 key={e.version}
@@ -83,27 +85,27 @@ export function LauncherTab() {
               />
             ))}
             {engines.length === 0 && (
-              <p className="text-zinc-500 text-sm">No engines found.</p>
+              <p className="text-slate-500 text-sm">No engines found.</p>
             )}
           </div>
         )}
       </section>
 
       {/* Projects */}
-      <section>
-        <div className="flex items-center gap-2 mb-2">
-          <h2 className="text-lg font-semibold text-amber-500">Projects</h2>
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-medium text-slate-300 uppercase tracking-wider">Projects</h2>
           <button
             type="button"
             onClick={refresh}
             disabled={projectsLoading}
-            className="rounded px-2 py-1 text-xs font-medium bg-zinc-700 text-zinc-300 hover:bg-zinc-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="rounded-md px-2.5 py-1 text-xs font-medium bg-slate-700/60 text-slate-300 hover:bg-slate-600/60 hover:text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-slate-600/50"
             title="Re-scan projects (remove deleted, refresh maps)"
           >
             {projectsLoading ? 'Scanning…' : 'Re-scan'}
           </button>
         </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-2">
+        <div className="flex flex-wrap gap-3">
           {projects.map((p) => (
             <LauncherCard
               key={p.projectPath}
@@ -117,9 +119,9 @@ export function LauncherTab() {
 
       {/* Pinned Jobs - only shown when there are pinned jobs */}
       {pinnedJobs.length > 0 && (
-        <section>
-          <h2 className="text-lg font-semibold text-amber-500 mb-2">Pinned Jobs</h2>
-          <div className="flex flex-wrap gap-x-4 gap-y-2">
+        <section className="space-y-3">
+          <h2 className="text-sm font-medium text-slate-300 uppercase tracking-wider">Pinned Jobs</h2>
+          <div className="flex flex-wrap gap-3">
             {pinnedJobs.map((job) => (
               <PinnedJobCard
                 key={job.id}

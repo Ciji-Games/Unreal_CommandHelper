@@ -11,6 +11,7 @@ import { useLog } from '../contexts/LogContext';
 import { useProgress } from '../contexts/ProgressContext';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
 import { ToolGroup } from './ToolGroup';
+import { Select } from './Select';
 import type { ProjectInfo } from '../types';
 import { getProjectDisplayLabel } from '../utils/project';
 import {
@@ -58,20 +59,20 @@ function AssetPicker({
 
   return (
     <div>
-      <label className="block text-sm text-zinc-300 mb-1">{label}</label>
+      <label className="block text-sm text-slate-300 mb-1">{label}</label>
       <div className="flex gap-2">
         <input
           type="text"
           value={value}
           readOnly
           placeholder="Browse to select..."
-          className="flex-1 rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none placeholder-zinc-500"
+          className="flex-1 rounded-md bg-slate-700/50 border border-slate-600 text-slate-100 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none placeholder-slate-500"
         />
         <button
           type="button"
           onClick={handleBrowse}
           disabled={disabled}
-          className="rounded px-4 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white text-sm font-medium"
+          className="rounded px-4 py-2 bg-slate-600/80 hover:bg-slate-500/80 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium"
         >
           Browse
         </button>
@@ -184,64 +185,52 @@ export function MovieRenderQueuePanel() {
     >
       <div className="flex flex-col gap-3">
         <div>
-          <label className="block text-sm text-zinc-300 mb-1">Project</label>
-          <select
+          <label className="block text-sm text-slate-300 mb-1">Project</label>
+          <Select
             value={selectedProjectPath}
-            onChange={(e) => handleProjectChange(e.target.value)}
-            className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-          >
-            <option value="">
-              {projects.length === 0 ? 'No projects available' : 'Select a project'}
-            </option>
-            {projects.map((p) => (
-              <option key={p.projectPath} value={p.projectPath}>
-                {getProjectDisplayLabel(p)}
-              </option>
-            ))}
-            <option value="__browse__">Browse new project...</option>
-          </select>
+            onChange={(v) => handleProjectChange(v)}
+            placeholder={projects.length === 0 ? 'No projects available' : 'Select a project'}
+            options={[
+              ...projects.map((p) => ({ value: p.projectPath, label: getProjectDisplayLabel(p) })),
+              { value: '__browse__', label: 'Browse new project...' },
+            ]}
+          />
         </div>
 
         <div>
-          <label className="block text-sm text-zinc-300 mb-1">Map</label>
-          <select
+          <label className="block text-sm text-slate-300 mb-1">Map</label>
+          <Select
             value={selectedMapPath}
-            onChange={(e) => setSelectedMapPath(e.target.value)}
+            onChange={(v) => setSelectedMapPath(v)}
+            placeholder="Select a map"
             disabled={!selectedProjectPath || maps.length === 0}
-            className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:opacity-50"
-          >
-            <option value="">{maps.length === 0 ? 'Select a map' : 'Select a map'}</option>
-            {maps.map((mapPath) => (
-              <option key={mapPath} value={mapPath}>
-                {mapDisplayName(mapPath)}
-              </option>
-            ))}
-          </select>
+            options={maps.map((mapPath) => ({ value: mapPath, label: mapDisplayName(mapPath) }))}
+          />
           {selectedProjectPath && maps.length === 0 && (
-            <p className="mt-1 text-sm text-amber-400/90">No .umap files found in Content/</p>
+            <p className="mt-1 text-sm text-sky-400/90">No .umap files found in Content/</p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm text-zinc-300 mb-2">Mode</label>
+          <label className="block text-sm text-slate-300 mb-2">Mode</label>
           <div className="flex gap-4">
-            <label className="flex items-center gap-2 text-zinc-300 text-sm cursor-pointer">
+            <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
               <input
                 type="radio"
                 name="mrq-mode"
                 checked={mode === 'queue'}
                 onChange={() => setMode('queue')}
-                className="border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
+                className="border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
               />
               Queue asset
             </label>
-            <label className="flex items-center gap-2 text-zinc-300 text-sm cursor-pointer">
+            <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
               <input
                 type="radio"
                 name="mrq-mode"
                 checked={mode === 'mix_match'}
                 onChange={() => setMode('mix_match')}
-                className="border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
+                className="border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
               />
               Level Sequence + Config
             </label>
@@ -279,13 +268,13 @@ export function MovieRenderQueuePanel() {
         )}
 
         {hasBlockingProcesses && (
-          <div className="rounded-lg border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100/90">
             <p className="font-medium">Cannot run: Unreal Engine is running</p>
-            <p className="mt-1 text-amber-200/90">Close Unreal Editor before running.</p>
+            <p className="mt-1 text-amber-100/80">Close Unreal Editor before running.</p>
           </div>
         )}
 
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-slate-500">
           Browse to select .uasset files from your project&apos;s Content folder. Movie Render Queue
           plugin must be enabled.
         </p>
@@ -294,7 +283,7 @@ export function MovieRenderQueuePanel() {
           type="button"
           onClick={handleRun}
           disabled={!canRun}
-          className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors"
+          className="rounded px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
         >
           Run Movie Render Queue
         </button>

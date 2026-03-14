@@ -11,12 +11,12 @@ interface ToolGroupProps {
 
 export function ToolGroup({ title, description, children }: ToolGroupProps) {
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <h3 className="font-bold text-white">{title}</h3>
-        <div className="flex-1 h-0.5 bg-amber-500" />
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <h3 className="font-semibold text-slate-100">{title}</h3>
+        <div className="flex-1 h-px bg-slate-600/60" />
       </div>
-      <p className="text-zinc-400 text-sm">{description}</p>
+      <p className="text-slate-400 text-sm leading-relaxed">{description}</p>
       {children}
     </div>
   );
