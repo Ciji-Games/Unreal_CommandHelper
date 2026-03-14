@@ -8,6 +8,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../../hooks/useProjects';
 import type { ProjectInfo } from '../../types';
 import { getProjectDisplayLabel } from '../../utils/project';
+import { Select } from '../Select';
 import {
   getContentDir,
   fsPathToUnrealAssetPath,
@@ -56,20 +57,20 @@ function AssetPicker({
 
   return (
     <div>
-      <label className="block text-sm text-zinc-300 mb-1">{label}</label>
+      <label className="block text-sm text-slate-300 mb-1">{label}</label>
       <div className="flex gap-2">
         <input
           type="text"
           value={value}
           readOnly
           placeholder="Browse to select..."
-          className="flex-1 rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none placeholder-zinc-500"
+          className="flex-1 rounded-md bg-slate-700/50 border border-slate-600 text-slate-100 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/30 placeholder-slate-500"
         />
         <button
           type="button"
           onClick={handleBrowse}
           disabled={disabled}
-          className="rounded px-4 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white text-sm font-medium"
+          className="rounded px-4 py-2 bg-slate-600/80 hover:bg-slate-500/80 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium"
         >
           Browse
         </button>
@@ -114,60 +115,50 @@ export function StepParamPanelMovieRenderQueue({ value, onChange }: StepParamPan
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <label className="block text-sm text-zinc-300 mb-1">Project</label>
-        <select
+        <label className="block text-sm text-slate-300 mb-1">Project</label>
+        <Select
           value={projectPath}
-          onChange={(e) => handleProjectChange(e.target.value)}
-          className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-        >
-          <option value="">{projects.length === 0 ? 'No projects' : 'Select project'}</option>
-          {projects.map((p) => (
-            <option key={p.projectPath} value={p.projectPath}>
-              {getProjectDisplayLabel(p)}
-            </option>
-          ))}
-          <option value="__browse__">Browse...</option>
-        </select>
+          onChange={(v) => handleProjectChange(v)}
+          placeholder={projects.length === 0 ? 'No projects' : 'Select project'}
+          options={[
+            ...projects.map((p) => ({ value: p.projectPath, label: getProjectDisplayLabel(p) })),
+            { value: '__browse__', label: 'Browse...' },
+          ]}
+        />
       </div>
       <div>
-        <label className="block text-sm text-zinc-300 mb-1">Map</label>
-        <select
+        <label className="block text-sm text-slate-300 mb-1">Map</label>
+        <Select
           value={mapPath}
-          onChange={(e) => onChange({ ...value, map: e.target.value })}
+          onChange={(v) => onChange({ ...value, map: v })}
+          placeholder="Select map"
           disabled={!projectPath || maps.length === 0}
-          className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:opacity-50"
-        >
-          <option value="">Select map</option>
-          {maps.map((mp) => (
-            <option key={mp} value={mp}>
-              {mapDisplayName(mp)}
-            </option>
-          ))}
-        </select>
+          options={maps.map((mp) => ({ value: mp, label: mapDisplayName(mp) }))}
+        />
         {projectPath && maps.length === 0 && (
-          <p className="mt-1 text-xs text-zinc-500">No .umap files found in Content/</p>
+          <p className="mt-1 text-xs text-slate-500">No .umap files found in Content/</p>
         )}
       </div>
       <div>
-        <label className="block text-sm text-zinc-300 mb-2">Mode</label>
+        <label className="block text-sm text-slate-300 mb-2">Mode</label>
         <div className="flex gap-4">
-          <label className="flex items-center gap-2 text-zinc-300 text-sm cursor-pointer">
+          <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
             <input
               type="radio"
               name="mrq-mode"
               checked={mode === 'queue'}
               onChange={() => onChange({ ...value, mode: 'queue' })}
-              className="border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
+              className="border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
             />
             Queue asset
           </label>
-          <label className="flex items-center gap-2 text-zinc-300 text-sm cursor-pointer">
+          <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
             <input
               type="radio"
               name="mrq-mode"
               checked={mode === 'mix_match'}
               onChange={() => onChange({ ...value, mode: 'mix_match' })}
-              className="border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
+              className="border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
             />
             Level Sequence + Config
           </label>

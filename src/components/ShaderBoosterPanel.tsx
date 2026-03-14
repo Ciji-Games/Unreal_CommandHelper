@@ -5,6 +5,7 @@
  */
 
 import { ToolGroup } from './ToolGroup';
+import { Select } from './Select';
 import { useShaderBooster } from '../hooks/useShaderBooster';
 import { useSettings } from '../hooks/useSettings';
 
@@ -40,7 +41,7 @@ export function ShaderBoosterPanel() {
     >
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-zinc-300">Current status:</span>
+          <span className="text-sm text-slate-300">Current status:</span>
           <span className={`font-medium ${statusColor}`}>{statusText}</span>
         </div>
 
@@ -52,28 +53,23 @@ export function ShaderBoosterPanel() {
 
         <div className="flex flex-wrap gap-6">
           <div>
-            <label className="block text-sm text-zinc-300 mb-1">Desired priority</label>
-            <select
-              value={settings.priorityBooster}
-              onChange={(e) => setSetting('priorityBooster', Number(e.target.value))}
-              className="rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-            >
-              {PRIORITY_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            <label className="block text-sm text-slate-300 mb-1">Desired priority</label>
+            <Select
+              value={String(settings.priorityBooster)}
+              onChange={(v) => setSetting('priorityBooster', Number(v))}
+              options={PRIORITY_OPTIONS.map((opt) => ({ value: String(opt.value), label: opt.label }))}
+              className="min-w-[10rem]"
+            />
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-sm text-zinc-300">Auto-switch</label>
+            <label className="text-sm text-slate-300">Auto-switch</label>
             <button
               type="button"
               role="switch"
               aria-checked={settings.autoSwitchBooster}
               onClick={() => setSetting('autoSwitchBooster', !settings.autoSwitchBooster)}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-zinc-900 ${
-                settings.autoSwitchBooster ? 'bg-amber-500' : 'bg-zinc-600'
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:ring-offset-2 focus:ring-offset-slate-900 ${
+                settings.autoSwitchBooster ? 'bg-sky-500' : 'bg-slate-600'
               }`}
             >
               <span
@@ -90,7 +86,7 @@ export function ShaderBoosterPanel() {
             type="button"
             onClick={handleBoost}
             disabled={!status.running}
-            className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors"
+            className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
           >
             Boost priority
           </button>
@@ -98,13 +94,13 @@ export function ShaderBoosterPanel() {
             type="button"
             onClick={handleReset}
             disabled={!status.running}
-            className="rounded px-4 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-medium transition-colors"
+            className="rounded-md px-4 py-2 bg-slate-600/80 hover:bg-slate-500/80 disabled:bg-slate-700 disabled:text-slate-500 text-slate-200 font-medium transition-colors"
           >
             Reset priority
           </button>
         </div>
 
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-slate-500">
           When Auto-switch is on, the selected priority is applied automatically every 2 seconds
           while ShaderCompileWorker is running.
         </p>

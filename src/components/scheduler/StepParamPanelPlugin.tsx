@@ -9,6 +9,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../../hooks/useProjects';
 import type { ProjectInfo, EngineEntry } from '../../types';
 import { getProjectDisplayLabel } from '../../utils/project';
+import { Select } from '../Select';
 
 interface PluginInfo {
   name: string;
@@ -112,61 +113,43 @@ export function StepParamPanelPlugin({ value, onChange }: StepParamPanelPluginPr
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <label className="block text-sm text-zinc-300 mb-1">Project (with Plugins)</label>
-        <select
+        <label className="block text-sm text-slate-300 mb-1">Project (with Plugins)</label>
+        <Select
           value={projectPath}
-          onChange={(e) => handleProjectChange(e.target.value)}
-          className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-        >
-          <option value="">
-            {projectsWithPlugins.length === 0 ? 'No projects with plugins' : 'Select project'}
-          </option>
-          {projectsWithPlugins.map((p) => (
-            <option key={p.projectPath} value={p.projectPath}>
-              {getProjectDisplayLabel(p)}
-            </option>
-          ))}
-          <option value="__browse__">Browse...</option>
-        </select>
+          onChange={(v) => handleProjectChange(v)}
+          placeholder={projectsWithPlugins.length === 0 ? 'No projects with plugins' : 'Select project'}
+          options={[
+            ...projectsWithPlugins.map((p) => ({ value: p.projectPath, label: getProjectDisplayLabel(p) })),
+            { value: '__browse__', label: 'Browse...' },
+          ]}
+        />
       </div>
       <div>
-        <label className="block text-sm text-zinc-300 mb-1">Plugin</label>
-        <select
+        <label className="block text-sm text-slate-300 mb-1">Plugin</label>
+        <Select
           value={upluginPath}
-          onChange={(e) => onChange({ ...value, upluginPath: e.target.value })}
+          onChange={(v) => onChange({ ...value, upluginPath: v })}
+          placeholder={plugins.length === 0 ? 'No plugins' : 'Select plugin'}
           disabled={!projectPath || plugins.length === 0}
-          className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:opacity-50"
-        >
-          <option value="">{plugins.length === 0 ? 'No plugins' : 'Select plugin'}</option>
-          {plugins.map((p) => (
-            <option key={p.upluginPath} value={p.upluginPath}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+          options={plugins.map((p) => ({ value: p.upluginPath, label: p.name }))}
+        />
       </div>
       <div>
-        <label className="block text-sm text-zinc-300 mb-1">Engine version</label>
-        <select
+        <label className="block text-sm text-slate-300 mb-1">Engine version</label>
+        <Select
           value={engineVersion}
-          onChange={(e) => onChange({ ...value, engineVersion: e.target.value })}
+          onChange={(v) => onChange({ ...value, engineVersion: v })}
+          placeholder={engines.length === 0 ? 'No engines' : 'Select engine'}
           disabled={engines.length === 0}
-          className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:opacity-50"
-        >
-          <option value="">{engines.length === 0 ? 'No engines' : 'Select engine'}</option>
-          {engines.map((e) => (
-            <option key={e.version} value={e.version}>
-              {e.version}
-            </option>
-          ))}
-        </select>
+          options={engines.map((e) => ({ value: e.version, label: e.version }))}
+        />
       </div>
-      <label className="flex items-center gap-2 text-zinc-300 text-sm cursor-pointer">
+      <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
         <input
           type="checkbox"
           checked={createZip}
           onChange={(e) => onChange({ ...value, createZip: e.target.checked })}
-          className="rounded border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
+          className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
         />
         Zip package (PluginName_EngineVersion.zip)
       </label>

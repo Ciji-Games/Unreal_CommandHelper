@@ -11,6 +11,7 @@ import { useLog } from '../contexts/LogContext';
 import { useProgress } from '../contexts/ProgressContext';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
 import { ToolGroup } from './ToolGroup';
+import { Select } from './Select';
 import type { ProjectInfo } from '../types';
 import { getProjectDisplayLabel } from '../utils/project';
 import type { EngineEntry } from '../types';
@@ -162,26 +163,18 @@ export function PluginHelperPanel() {
     >
       <div className="flex flex-col gap-3">
         <div>
-          <label className="block text-sm text-zinc-300 mb-1">Project (with Plugins folder)</label>
-          <select
+          <label className="block text-sm text-slate-300 mb-1">Project (with Plugins folder)</label>
+          <Select
             value={selectedProjectPath}
-            onChange={(e) => handleProjectChange(e.target.value)}
-            className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-          >
-            <option value="">
-              {projectsWithPlugins.length === 0
-                ? 'No projects with plugins'
-                : 'Select a project'}
-            </option>
-            {projectsWithPlugins.map((p) => (
-              <option key={p.projectPath} value={p.projectPath}>
-                {getProjectDisplayLabel(p)}
-              </option>
-            ))}
-            <option value="__browse__">Browse new project...</option>
-          </select>
+            onChange={(v) => handleProjectChange(v)}
+            placeholder={projectsWithPlugins.length === 0 ? 'No projects with plugins' : 'Select a project'}
+            options={[
+              ...projectsWithPlugins.map((p) => ({ value: p.projectPath, label: getProjectDisplayLabel(p) })),
+              { value: '__browse__', label: 'Browse new project...' },
+            ]}
+          />
           {projectsWithPlugins.length === 0 && (
-            <p className="mt-1 text-sm text-amber-400/90">
+            <p className="mt-1 text-sm text-sky-400/90">
               {projects.length === 0
                 ? 'Add projects (via Launcher tab) or browse to select a project with a Plugins folder.'
                 : 'No projects with a Plugins folder found. Add one or browse to a project that has Plugins/ next to the .uproject.'}
@@ -190,56 +183,44 @@ export function PluginHelperPanel() {
         </div>
 
         <div>
-          <label className="block text-sm text-zinc-300 mb-1">Plugin</label>
-          <select
+          <label className="block text-sm text-slate-300 mb-1">Plugin</label>
+          <Select
             value={selectedPlugin?.upluginPath ?? ''}
-            onChange={(e) => {
-              const p = plugins.find((pl) => pl.upluginPath === e.target.value);
+            onChange={(v) => {
+              const p = plugins.find((pl) => pl.upluginPath === v);
               setSelectedPlugin(p ?? null);
             }}
+            placeholder={plugins.length === 0 ? 'No plugins' : 'Select a plugin'}
             disabled={!selectedProjectPath || plugins.length === 0}
-            className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:opacity-50"
-          >
-            <option value="">{plugins.length === 0 ? 'No plugins' : 'Select a plugin'}</option>
-            {plugins.map((p) => (
-              <option key={p.upluginPath} value={p.upluginPath}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+            options={plugins.map((p) => ({ value: p.upluginPath, label: p.name }))}
+          />
         </div>
 
         <div>
-          <label className="block text-sm text-zinc-300 mb-1">Engine version</label>
-          <select
+          <label className="block text-sm text-slate-300 mb-1">Engine version</label>
+          <Select
             value={selectedEngineVersion}
-            onChange={(e) => setSelectedEngineVersion(e.target.value)}
+            onChange={(v) => setSelectedEngineVersion(v)}
+            placeholder={engines.length === 0 ? 'No engines found' : 'Select engine'}
             disabled={engines.length === 0}
-            className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:opacity-50"
-          >
-            <option value="">{engines.length === 0 ? 'No engines found' : 'Select engine'}</option>
-            {engines.map((e) => (
-              <option key={e.version} value={e.version}>
-                {e.version}
-              </option>
-            ))}
-          </select>
+            options={engines.map((e) => ({ value: e.version, label: e.version }))}
+          />
         </div>
 
-        <label className="flex items-center gap-2 text-zinc-300 text-sm cursor-pointer">
+        <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
           <input
             type="checkbox"
             checked={createZip}
             onChange={(e) => setCreateZip(e.target.checked)}
-            className="rounded border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
+            className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
           />
           Zip package (filename: PluginName_EngineVersion.zip)
         </label>
 
         {hasBlockingProcesses && (
-          <div className="rounded-lg border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100/90">
             <p className="font-medium">Cannot build: Unreal Engine is running</p>
-            <p className="mt-1 text-amber-200/90">
+            <p className="mt-1 text-amber-100/80">
               {blockingProcesses.map((p) => p.displayName).join(', ')} — close it before building
               the plugin.
             </p>
@@ -256,7 +237,7 @@ export function PluginHelperPanel() {
             selectedProjectPath === '__browse__' ||
             hasBlockingProcesses
           }
-          className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors"
+          className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
         >
           {running ? 'Building...' : 'Build Plugin'}
         </button>

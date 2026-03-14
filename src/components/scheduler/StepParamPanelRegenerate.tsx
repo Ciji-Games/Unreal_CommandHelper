@@ -9,6 +9,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../../hooks/useProjects';
 import type { ProjectInfo } from '../../types';
 import { getProjectDisplayLabel } from '../../utils/project';
+import { Select } from '../Select';
 
 interface StepParamPanelRegenerateProps {
   value: Record<string, unknown>;
@@ -51,48 +52,42 @@ export function StepParamPanelRegenerate({ value, onChange }: StepParamPanelRege
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <label className="block text-sm text-zinc-300 mb-1">Project (C++ only)</label>
-        <select
+        <label className="block text-sm text-slate-300 mb-1">Project (C++ only)</label>
+        <Select
           value={projectPath}
-          onChange={(e) => handleProjectChange(e.target.value)}
-          className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-        >
-          <option value="">
-            {cppProjects.length === 0 ? 'No C++ projects' : 'Select project'}
-          </option>
-          {cppProjects.map((p) => (
-            <option key={p.projectPath} value={p.projectPath}>
-              {getProjectDisplayLabel(p)}
-            </option>
-          ))}
-          <option value="__browse__">Browse...</option>
-        </select>
+          onChange={(v) => handleProjectChange(v)}
+          placeholder={cppProjects.length === 0 ? 'No C++ projects' : 'Select project'}
+          options={[
+            ...cppProjects.map((p) => ({ value: p.projectPath, label: getProjectDisplayLabel(p) })),
+            { value: '__browse__', label: 'Browse...' },
+          ]}
+        />
       </div>
       <div className="flex flex-wrap gap-4">
-        <label className="flex items-center gap-2 text-zinc-300 text-sm cursor-pointer">
+        <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
           <input
             type="checkbox"
             checked={buildAfter}
             onChange={(e) => onChange({ ...value, buildAfter: e.target.checked })}
-            className="rounded border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
+            className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
           />
           Build Project
         </label>
-        <label className="flex items-center gap-2 text-zinc-300 text-sm cursor-pointer">
+        <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
           <input
             type="checkbox"
             checked={openProjectAfter}
             onChange={(e) => onChange({ ...value, openProjectAfter: e.target.checked })}
-            className="rounded border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
+            className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
           />
           Launch Project
         </label>
-        <label className="flex items-center gap-2 text-zinc-300 text-sm cursor-pointer">
+        <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
           <input
             type="checkbox"
             checked={openSlnAfter}
             onChange={(e) => onChange({ ...value, openSlnAfter: e.target.checked })}
-            className="rounded border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
+            className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
           />
             Open .sln
         </label>

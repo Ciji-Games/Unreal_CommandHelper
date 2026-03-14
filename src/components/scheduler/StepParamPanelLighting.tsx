@@ -8,6 +8,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../../hooks/useProjects';
 import type { ProjectInfo } from '../../types';
 import { getProjectDisplayLabel } from '../../utils/project';
+import { Select } from '../Select';
 
 const LIGHTING_QUALITIES = ['Preview', 'Medium', 'High', 'Production', 'MAX'] as const;
 
@@ -50,50 +51,34 @@ export function StepParamPanelLighting({ value, onChange }: StepParamPanelLighti
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <label className="block text-sm text-zinc-300 mb-1">Project</label>
-        <select
+        <label className="block text-sm text-slate-300 mb-1">Project</label>
+        <Select
           value={projectPath}
-          onChange={(e) => handleProjectChange(e.target.value)}
-          className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-        >
-          <option value="">{projects.length === 0 ? 'No projects' : 'Select project'}</option>
-          {projects.map((p) => (
-            <option key={p.projectPath} value={p.projectPath}>
-              {getProjectDisplayLabel(p)}
-            </option>
-          ))}
-          <option value="__browse__">Browse...</option>
-        </select>
+          onChange={(v) => handleProjectChange(v)}
+          placeholder={projects.length === 0 ? 'No projects' : 'Select project'}
+          options={[
+            ...projects.map((p) => ({ value: p.projectPath, label: getProjectDisplayLabel(p) })),
+            { value: '__browse__', label: 'Browse...' },
+          ]}
+        />
       </div>
       <div>
-        <label className="block text-sm text-zinc-300 mb-1">Map</label>
-        <select
+        <label className="block text-sm text-slate-300 mb-1">Map</label>
+        <Select
           value={mapPath}
-          onChange={(e) => onChange({ ...value, map: e.target.value })}
+          onChange={(v) => onChange({ ...value, map: v })}
+          placeholder="Select map"
           disabled={!projectPath || maps.length === 0}
-          className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:opacity-50"
-        >
-          <option value="">Select map</option>
-          {maps.map((mp) => (
-            <option key={mp} value={mp}>
-              {mapDisplayName(mp)}
-            </option>
-          ))}
-        </select>
+          options={maps.map((mp) => ({ value: mp, label: mapDisplayName(mp) }))}
+        />
       </div>
       <div>
-        <label className="block text-sm text-zinc-300 mb-1">Quality</label>
-        <select
+        <label className="block text-sm text-slate-300 mb-1">Quality</label>
+        <Select
           value={quality}
-          onChange={(e) => onChange({ ...value, quality: e.target.value })}
-          className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-        >
-          {LIGHTING_QUALITIES.map((q) => (
-            <option key={q} value={q}>
-              {q}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => onChange({ ...value, quality: v })}
+          options={LIGHTING_QUALITIES.map((q) => ({ value: q, label: q }))}
+        />
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../../hooks/useProjects';
 import type { ProjectInfo } from '../../types';
 import { getProjectDisplayLabel } from '../../utils/project';
+import { Select } from '../Select';
 
 interface StepParamPanelMapProps {
   value: Record<string, unknown>;
@@ -48,43 +49,33 @@ export function StepParamPanelMap({ value, onChange }: StepParamPanelMapProps) {
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <label className="block text-sm text-zinc-300 mb-1">Project</label>
-        <select
+        <label className="block text-sm text-slate-300 mb-1">Project</label>
+        <Select
           value={projectPath}
-          onChange={(e) => handleProjectChange(e.target.value)}
-          className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-        >
-          <option value="">{projects.length === 0 ? 'No projects' : 'Select project'}</option>
-          {projects.map((p) => (
-            <option key={p.projectPath} value={p.projectPath}>
-              {getProjectDisplayLabel(p)}
-            </option>
-          ))}
-          <option value="__browse__">Browse...</option>
-        </select>
+          onChange={(v) => handleProjectChange(v)}
+          placeholder={projects.length === 0 ? 'No projects' : 'Select project'}
+          options={[
+            ...projects.map((p) => ({ value: p.projectPath, label: getProjectDisplayLabel(p) })),
+            { value: '__browse__', label: 'Browse...' },
+          ]}
+        />
       </div>
       <div>
-        <label className="block text-sm text-zinc-300 mb-1">Map</label>
-        <select
+        <label className="block text-sm text-slate-300 mb-1">Map</label>
+        <Select
           value={mapPath}
-          onChange={(e) => onChange({ ...value, map: e.target.value })}
+          onChange={(v) => onChange({ ...value, map: v })}
+          placeholder="Select map"
           disabled={!projectPath || maps.length === 0}
-          className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:opacity-50"
-        >
-          <option value="">Select map</option>
-          {maps.map((mp) => (
-            <option key={mp} value={mp}>
-              {mapDisplayName(mp)}
-            </option>
-          ))}
-        </select>
+          options={maps.map((mp) => ({ value: mp, label: mapDisplayName(mp) }))}
+        />
       </div>
-      <label className="flex items-center gap-2 text-zinc-300 text-sm cursor-pointer">
+      <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
         <input
           type="checkbox"
           checked={launchMapAfter}
           onChange={(e) => onChange({ ...value, launchMapAfter: e.target.checked })}
-          className="rounded border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
+          className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
         />
         Launch map after completion
       </label>

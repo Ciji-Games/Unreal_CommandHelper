@@ -26,17 +26,17 @@ export function LinkButton({ link }: LinkButtonProps) {
     <button
       type="button"
       onClick={handleClick}
-      className="flex flex-col rounded-lg border border-zinc-700 bg-zinc-900/80 w-36 shrink-0 hover:border-amber-500/50 transition-colors group text-left cursor-pointer"
+      className="flex flex-col rounded-lg border border-slate-600/60 bg-slate-800/50 w-36 shrink-0 hover:border-sky-500/40 transition-all group text-left cursor-pointer shadow-sm"
       title={link.url}
       aria-label={`Open ${link.label}`}
     >
-      <div className="relative aspect-[3/2] bg-zinc-800 flex items-center justify-center overflow-hidden rounded-t-lg p-6">
+      <div className="relative aspect-[3/2] bg-slate-700/50 flex items-center justify-center overflow-hidden rounded-t-lg p-6">
         {iconSrc ? (
           <img src={iconSrc} alt="" className="w-full h-full object-contain" />
         ) : (
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="h-10 w-10 text-amber-500"
+            className="h-10 w-10 text-sky-400/80"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -51,8 +51,8 @@ export function LinkButton({ link }: LinkButtonProps) {
         )}
       </div>
 
-      <div className="p-2">
-        <h3 className="font-semibold text-white truncate text-sm text-center group-hover:text-amber-500 transition-colors" title={link.label}>
+      <div className="p-2.5">
+        <h3 className="font-medium text-slate-100 truncate text-sm text-center group-hover:text-sky-400 transition-colors" title={link.label}>
           {link.label}
         </h3>
       </div>

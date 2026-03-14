@@ -11,6 +11,7 @@ import { useProjects } from '../hooks/useProjects';
 import { useLog } from '../contexts/LogContext';
 import { useProgress } from '../contexts/ProgressContext';
 import { ToolGroup } from './ToolGroup';
+import { Select } from './Select';
 import type { ProjectInfo } from '../types';
 import { getProjectDisplayLabel } from '../utils/project';
 
@@ -44,12 +45,12 @@ function formatSize(bytes: number): string {
 }
 
 const ChevronRight = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-zinc-500">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500">
     <path d="M9 18l6-6-6-6" />
   </svg>
 );
 const ChevronDown = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-zinc-500">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500">
     <path d="M6 9l6 6 6-6" />
   </svg>
 );
@@ -338,26 +339,20 @@ export function BatchCommitPanel() {
     >
       <div className="flex flex-col gap-3">
         <div>
-          <label className="block text-sm text-zinc-300 mb-1">Project</label>
-          <select
+          <label className="block text-sm text-slate-300 mb-1">Project</label>
+          <Select
             value={selectedProjectPath}
-            onChange={(e) => handleProjectChange(e.target.value)}
-            className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-          >
-            <option value="">
-              {projects.length === 0 ? 'No projects available' : 'Select a project'}
-            </option>
-            {projects.map((p) => (
-              <option key={p.projectPath} value={p.projectPath}>
-                {getProjectDisplayLabel(p)}
-              </option>
-            ))}
-            <option value="__browse__">Browse new project...</option>
-          </select>
+            onChange={(v) => handleProjectChange(v)}
+            placeholder={projects.length === 0 ? 'No projects available' : 'Select a project'}
+            options={[
+              ...projects.map((p) => ({ value: p.projectPath, label: getProjectDisplayLabel(p) })),
+              { value: '__browse__', label: 'Browse new project...' },
+            ]}
+          />
         </div>
 
         <div>
-          <label className="block text-sm text-zinc-300 mb-1">
+          <label className="block text-sm text-slate-300 mb-1">
             Group target size: {targetSizeMb} MB
           </label>
           <input
@@ -370,23 +365,23 @@ export function BatchCommitPanel() {
               setTargetSizeMb(Number(e.target.value));
               setScanResult(null);
             }}
-            className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-zinc-700 accent-amber-500"
+            className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-slate-700 accent-sky-500"
           />
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-slate-500">
             Best-effort target per commit group (100 MB – 1.8 GB)
           </p>
         </div>
 
         <div>
-          <label className="block text-sm text-zinc-300 mb-1">Commit name</label>
+          <label className="block text-sm text-slate-300 mb-1">Commit name</label>
           <input
             type="text"
             value={commitName}
             onChange={(e) => setCommitName(e.target.value)}
             placeholder="e.g. My changes"
-            className="w-full rounded bg-zinc-800 border border-zinc-600 text-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none placeholder:text-zinc-500"
+            className="w-full rounded-md bg-slate-700/50 border border-slate-600 text-slate-100 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/30 placeholder:text-slate-500"
           />
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-slate-500">
             Commits will be named: {commitName || 'name'}_1, {commitName || 'name'}_2, ...
           </p>
         </div>
@@ -395,18 +390,18 @@ export function BatchCommitPanel() {
           type="button"
           onClick={handleScan}
           disabled={!selectedProjectPath || selectedProjectPath === '__browse__' || running}
-          className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors w-fit"
+          className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors w-fit"
         >
           {running ? 'Scanning...' : 'Scan'}
         </button>
 
         {scanResult && (
           <>
-            <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 overflow-hidden">
-              <div className="divide-y divide-zinc-700/80">
+            <div className="rounded-lg border border-slate-600/60 bg-slate-700/30 overflow-hidden">
+              <div className="divide-y divide-slate-600/60">
                 {!hasContent ? (
                   <div className="p-4">
-                    <p className="text-sm text-zinc-500">No uncommitted or unstaged files found.</p>
+                    <p className="text-sm text-slate-500">No uncommitted or unstaged files found.</p>
                   </div>
                 ) : (
                   <>
@@ -414,35 +409,35 @@ export function BatchCommitPanel() {
                       const totalSize = group.reduce((s, e) => s + e.size, 0);
                       const isExpanded = expandedGroups.has(i);
                       return (
-                        <div key={i} className="bg-zinc-800/30">
+                        <div key={i} className="bg-slate-700/20">
                           <button
                             type="button"
                             onClick={() => toggleGroup(i)}
-                            className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-zinc-700/40 transition-colors"
+                            className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-700/40 transition-colors"
                           >
                             <div className="flex items-center gap-3 min-w-0">
                               {isExpanded ? <ChevronDown /> : <ChevronRight />}
-                              <span className="font-medium text-amber-400/95">
+                              <span className="font-medium text-sky-400/95">
                                 {commitName || 'name'}_{i + 1}
                               </span>
-                              <span className="text-zinc-500 text-sm shrink-0">
+                              <span className="text-slate-500 text-sm shrink-0">
                                 {formatSize(totalSize)} · {group.length} files
                               </span>
                             </div>
                           </button>
                           {isExpanded && (
-                            <div className="px-4 pb-3 pt-0 border-t border-zinc-700/60">
+                            <div className="px-4 pb-3 pt-0 border-t border-slate-600/60">
                               <div className="max-h-56 overflow-y-auto text-sm space-y-0.5">
                                 {group.map((entry) => (
                                   <div
                                     key={entry.path}
-                                    className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-zinc-700/30"
+                                    className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-slate-700/30"
                                     title={entry.path}
                                   >
-                                    <span className="truncate flex-1 min-w-0 text-zinc-300">
+                                    <span className="truncate flex-1 min-w-0 text-slate-300">
                                       {entry.path.split(/[/\\]/).pop() ?? entry.path}
                                     </span>
-                                    <span className="text-zinc-500 text-xs shrink-0">
+                                    <span className="text-slate-500 text-xs shrink-0">
                                       {formatSize(entry.size)}
                                     </span>
                                   </div>
@@ -455,18 +450,18 @@ export function BatchCommitPanel() {
                     })}
 
                     {largeFiles.length > 0 && (
-                      <div className="bg-zinc-800/30">
-                        <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-zinc-700/40">
+                      <div className="bg-slate-700/20">
+                        <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-700/40">
                           <button
                             type="button"
                             onClick={() => toggleGroup(largeFileSectionIndex)}
                             className="flex items-center gap-3 min-w-0 flex-1 text-left"
                           >
                             {expandedGroups.has(largeFileSectionIndex) ? <ChevronDown /> : <ChevronRight />}
-                            <span className="font-medium text-amber-400/95">
+                            <span className="font-medium text-sky-400/95">
                               Large files
                             </span>
-                            <span className="text-zinc-500 text-sm shrink-0">
+                            <span className="text-slate-500 text-sm shrink-0">
                               {formatSize(largeFiles.reduce((s, e) => s + e.size, 0))} ·{' '}
                               {largeFiles.length} files
                             </span>
@@ -484,14 +479,14 @@ export function BatchCommitPanel() {
                             <button
                               type="button"
                               onClick={handleAddAllToLfs}
-                              className="shrink-0 px-3 py-1.5 rounded text-xs font-medium bg-amber-600 text-white hover:bg-amber-500"
+                              className="shrink-0 px-3 py-1.5 rounded-md text-xs font-medium bg-sky-600/80 text-white hover:bg-sky-500/80"
                             >
                               Add all to LFS
                             </button>
                           )}
                         </div>
                         {expandedGroups.has(largeFileSectionIndex) && (
-                          <div className="px-4 pb-3 pt-0 border-t border-zinc-700/60">
+                          <div className="px-4 pb-3 pt-0 border-t border-slate-600/60">
                             <div className="max-h-56 overflow-y-auto text-sm space-y-0.5">
                               {largeFiles.map((entry) => {
                                 const inLfs = effectiveInLfs(entry);
@@ -506,17 +501,17 @@ export function BatchCommitPanel() {
                                     ? 'text-red-400'
                                     : status.startsWith('Will be in commit')
                                       ? 'text-green-400'
-                                      : 'text-zinc-500';
+                                      : 'text-slate-500';
                                 return (
                                   <div
                                     key={entry.path}
-                                    className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-zinc-700/30"
+                                    className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-slate-700/30"
                                     title={entry.path}
                                   >
-                                    <span className="truncate flex-1 min-w-0 text-zinc-300">
+                                    <span className="truncate flex-1 min-w-0 text-slate-300">
                                       {entry.path.split(/[/\\]/).pop() ?? entry.path}
                                     </span>
-                                    <span className="text-zinc-500 text-xs shrink-0">
+                                    <span className="text-slate-500 text-xs shrink-0">
                                       {formatSize(entry.size)}
                                     </span>
                                     <span className={`${statusColor} text-xs shrink-0 max-w-[180px] truncate`} title={status}>
@@ -526,7 +521,7 @@ export function BatchCommitPanel() {
                                       <button
                                         type="button"
                                         onClick={() => handleRemoveFromLfs(entry.path)}
-                                        className="shrink-0 px-2 py-0.5 rounded text-xs font-medium bg-zinc-600 text-white hover:bg-zinc-500"
+                                        className="shrink-0 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-600/80 text-slate-200 hover:bg-slate-500/80"
                                       >
                                         Remove from LFS
                                       </button>
@@ -534,7 +529,7 @@ export function BatchCommitPanel() {
                                       <button
                                         type="button"
                                         onClick={() => handleAddToLfs(entry.path)}
-                                        className="shrink-0 px-2 py-0.5 rounded text-xs font-medium bg-amber-600 text-white hover:bg-amber-500"
+                                        className="shrink-0 px-2 py-0.5 rounded-md text-xs font-medium bg-sky-600/80 text-white hover:bg-sky-500/80"
                                       >
                                         Add to LFS
                                       </button>
@@ -560,7 +555,7 @@ export function BatchCommitPanel() {
                 running ||
                 !hasCommits
               }
-              className="rounded px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium transition-colors w-fit"
+              className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors w-fit"
             >
               {running ? 'Committing...' : 'Batch Commit'}
             </button>
