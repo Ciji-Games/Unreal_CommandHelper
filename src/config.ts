@@ -18,19 +18,43 @@ export const DEFAULT_SETTINGS = {
   priorityBooster: 0, // 0=BelowNormal, 1=Normal, 2=AboveNormal, 3=High
 } as const;
 
-/** Link entry for the Links tab. icon is optional asset key (e.g. 'ueIcon', 'cppLogo') or undefined for default. */
+/** Link entry for the Links tab. icon is optional asset key or undefined for default. */
 export interface LinkEntry {
   url: string;
   label: string;
-  icon?: 'ueIcon' | 'cppLogo';
+  icon?: 'ueIcon' | 'cppLogo' | 'fab' | 'logoBackend' | 'logoAcademy' | 'discord';
 }
 
-/** Default links shown in the Links tab. Customize as needed. */
-export const LINKS: LinkEntry[] = [
-  { url: 'https://docs.unrealengine.com', label: 'Unreal Engine Docs', icon: 'ueIcon' },
-  { url: 'https://github.com/EpicGames/UnrealEngine', label: 'Unreal Engine (GitHub)', icon: 'ueIcon' },
-  { url: 'https://forums.unrealengine.com', label: 'Unreal Forums', icon: 'ueIcon' },
-  { url: 'https://dev.epicgames.com/documentation', label: 'Epic Dev Docs', icon: 'ueIcon' },
-  { url: 'https://github.com', label: 'GitHub', icon: 'cppLogo' },
-  { url: 'https://learn.microsoft.com/en-us/cpp', label: 'C++ Docs (MS)', icon: 'cppLogo' },
+/** Category with its links. */
+export interface LinkCategory {
+  name: string;
+  links: LinkEntry[];
+}
+
+/** Links shown in the Links tab, grouped by category. From links.md. */
+export const LINK_CATEGORIES: LinkCategory[] = [
+  {
+    name: 'Official links',
+    links: [
+      { url: 'https://forums.unrealengine.com/categories?tag=unreal-engine', label: 'Forums Unreal Engine', icon: 'ueIcon' },
+      { url: 'https://docs.unrealengine.com/', label: 'Latest documentation', icon: 'ueIcon' },
+      { url: 'https://www.fab.com/', label: 'Fab.com', icon: 'fab' },
+    ],
+  },
+  {
+    name: 'Community links',
+    links: [
+      { url: 'https://unreal-garden.com/', label: 'Unreal Garden', icon: 'ueIcon' },
+      { url: 'https://www.unrealdirective.com/resources/asset-naming-conventions', label: 'Assets Naming convention', icon: 'ueIcon' },
+      { url: 'https://discord.gg/unrealsource', label: 'Unreal Source', icon: 'discord' },
+    ],
+  },
+  {
+    name: 'Ciji Games',
+    links: [
+      { url: 'https://ciji.dev/', label: 'Gamedev backend', icon: 'logoBackend' },
+      { url: 'https://academy.cijigames.com/', label: 'French U.E Courses', icon: 'logoAcademy' },
+      { url: 'https://www.fab.com/sellers/Ciji%20Games', label: 'Ciji Games on FAB', icon: 'fab' },
+    ],
+  },
 ];

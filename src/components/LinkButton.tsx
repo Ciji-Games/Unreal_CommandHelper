@@ -1,5 +1,5 @@
 /**
- * LinkButton - Icon + label, opens URL in default browser on click.
+ * LinkButton - Card-style link matching LauncherCard. Opens URL in default browser on click.
  * Mirrors URLBtn from UECommandHelper.
  */
 
@@ -26,17 +26,17 @@ export function LinkButton({ link }: LinkButtonProps) {
     <button
       type="button"
       onClick={handleClick}
-      className="flex flex-col items-center justify-center gap-3 p-5 rounded-lg border border-zinc-700 bg-zinc-900/80 hover:bg-zinc-800 hover:border-amber-500/50 transition-colors w-36 h-36 shrink-0 group"
+      className="flex flex-col rounded-lg border border-zinc-700 bg-zinc-900/80 w-36 shrink-0 hover:border-amber-500/50 transition-colors group text-left cursor-pointer"
       title={link.url}
       aria-label={`Open ${link.label}`}
     >
-      <div className="flex items-center justify-center w-14 h-14 rounded-lg bg-zinc-800 group-hover:bg-zinc-700 transition-colors overflow-hidden">
+      <div className="relative aspect-[3/2] bg-zinc-800 flex items-center justify-center overflow-hidden rounded-t-lg p-6">
         {iconSrc ? (
-          <img src={iconSrc} alt="" className="w-10 h-10 object-contain" />
+          <img src={iconSrc} alt="" className="w-full h-full object-contain" />
         ) : (
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="h-8 w-8 text-amber-500"
+            className="h-10 w-10 text-amber-500"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -50,9 +50,12 @@ export function LinkButton({ link }: LinkButtonProps) {
           </svg>
         )}
       </div>
-      <span className="text-sm font-medium text-white text-center line-clamp-2 group-hover:text-amber-500 transition-colors">
-        {link.label}
-      </span>
+
+      <div className="p-2">
+        <h3 className="font-semibold text-white truncate text-sm text-center group-hover:text-amber-500 transition-colors" title={link.label}>
+          {link.label}
+        </h3>
+      </div>
     </button>
   );
 }

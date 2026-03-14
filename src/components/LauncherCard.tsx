@@ -118,7 +118,7 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
   if (isEngine) {
     return (
       <div className="flex flex-col rounded-lg border border-zinc-700 bg-zinc-900/80 w-36 shrink-0">
-        <div className="p-3 space-y-2">
+        <div className="p-2 space-y-1.5">
           <h3 className="font-semibold text-white truncate text-sm text-center" title={project.projectName}>
             {project.projectName}
           </h3>
@@ -139,7 +139,7 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
   return (
     <div className="flex flex-col rounded-lg border border-zinc-700 bg-zinc-900/80 w-36 shrink-0">
       {/* Card header: square thumbnail (1:1) + overlays */}
-      <div className="relative aspect-square bg-zinc-800 flex items-center justify-center overflow-hidden">
+      <div className="relative aspect-[3/2] bg-zinc-800 flex items-center justify-center overflow-hidden rounded-t-lg p-6">
         <img
           src={thumbnailSrc}
           alt={project.projectName}
@@ -171,7 +171,7 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
         </span>
       </div>
 
-      <div className="p-3 space-y-2">
+      <div className="p-2 space-y-1.5">
         <h3 className="font-semibold text-white truncate text-sm text-center" title={project.projectName}>
           {project.projectName}
         </h3>
