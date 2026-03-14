@@ -89,6 +89,59 @@ export function useRunScheduledJob() {
               enginePath,
               quality: params.quality ?? undefined,
             });
+          } else if (step.id === 'resave_packages') {
+            await invoke('run_resave_packages', {
+              projectPath,
+              enginePath,
+              fixupRedirects: params.fixupRedirects ?? true,
+              autocheckout: params.autocheckout ?? false,
+              projectOnly: params.projectOnly ?? true,
+              autocheckin: params.autocheckin ?? false,
+            });
+          } else if (step.id === 'resave_actors') {
+            let extra = '-SCCProvider=None';
+            const ac = params.actorClass as string | undefined;
+            if (ac?.trim()) extra += ` -ActorClass=${ac.trim()}`;
+            await invoke('run_map_command', {
+              projectPath,
+              mapPath: params.map,
+              builder: 'WorldPartitionResaveActorsBuilder',
+              extraArgs: extra,
+              enginePath,
+              launchMapAfter: params.launchMapAfter ?? false,
+            });
+          } else if (step.id === 'foliage_builder') {
+            const gridSize = (params.newGridSize as number) ?? 512;
+            await invoke('run_map_command', {
+              projectPath,
+              mapPath: params.map,
+              builder: 'WorldPartitionFoliageBuilder',
+              extraArgs: `-SCCProvider=None -NewGridSize=${gridSize}`,
+              enginePath,
+              launchMapAfter: params.launchMapAfter ?? false,
+            });
+          } else if (step.id === 'navigation_data') {
+            await invoke('run_map_command', {
+              projectPath,
+              mapPath: params.map,
+              builder: 'WorldPartitionNavigationDataBuilder',
+              extraArgs: '-SCCProvider=None',
+              enginePath,
+              launchMapAfter: params.launchMapAfter ?? false,
+            });
+          } else if (step.id === 'rename_duplicate') {
+            const pkg = (params.newPackage as string)?.trim();
+            if (!pkg) throw new Error('NewPackage path is required for Rename/Duplicate Map.');
+            let extra = `-SCCProvider=None -NewPackage=${pkg}`;
+            if (params.rename) extra += ' -Rename';
+            await invoke('run_map_command', {
+              projectPath,
+              mapPath: params.map,
+              builder: 'WorldPartitionRenameDuplicateBuilder',
+              extraArgs: extra,
+              enginePath,
+              launchMapAfter: params.launchMapAfter ?? false,
+            });
           } else if (step.id === 'cook') {
             await invoke('run_cook', {
               projectPath,

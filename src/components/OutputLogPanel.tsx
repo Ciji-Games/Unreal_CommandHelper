@@ -262,7 +262,7 @@ export function OutputLogPanel() {
                 onClick={handleStop}
                 disabled={stopping}
                 className="rounded p-1.5 text-red-400 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
-                title="Stop process"
+                title="Terminates the running process (taskkill /F /PID)."
                 aria-label="Stop process"
               >
                 <StopIcon className="w-4 h-4" />
@@ -287,7 +287,7 @@ export function OutputLogPanel() {
                   onClick={handleStop}
                   disabled={stopping}
                   className="rounded p-1.5 text-red-400 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  title="Stop process"
+                  title="Terminates the running process (taskkill /F /PID)."
                   aria-label="Stop process"
                 >
                   <StopIcon className="w-4 h-4" />

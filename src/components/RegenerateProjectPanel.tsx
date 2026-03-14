@@ -93,7 +93,7 @@ export function RegenerateProjectPanel() {
 
     clearLog();
     setRunning(true);
-    startProgress();
+    startProgress({ showOutputLog: true });
     try {
       await invoke('regenerate_project', {
         uprojectPath: selectedPath,
@@ -187,6 +187,7 @@ export function RegenerateProjectPanel() {
             cppProjects.length === 0 ||
             hasBlockingProcesses
           }
+          title="Runs UnrealVersionSelector.exe to regenerate project files (.sln, .vcxproj). Updates build configuration from .uproject."
           className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
         >
           {running ? 'Regenerating...' : 'Regenerate'}

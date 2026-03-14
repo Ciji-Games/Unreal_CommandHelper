@@ -39,6 +39,7 @@ pub fn run() {
             commands::uproject::run_package,
             commands::uproject::run_archive,
             commands::uproject::run_build,
+            commands::uproject::run_resave_packages,
             commands::plugin::list_plugins_for_project,
             commands::plugin::build_plugin,
             commands::movie_render_queue::run_movie_render_queue,

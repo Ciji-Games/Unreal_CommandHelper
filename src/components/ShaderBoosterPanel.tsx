@@ -86,6 +86,7 @@ export function ShaderBoosterPanel() {
             type="button"
             onClick={handleBoost}
             disabled={!status.running}
+            title="Sets ShaderCompileWorker process priority to Above Normal to speed up shader compilation."
             className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
           >
             Boost priority
@@ -94,6 +95,7 @@ export function ShaderBoosterPanel() {
             type="button"
             onClick={handleReset}
             disabled={!status.running}
+            title="Resets ShaderCompileWorker process priority to Normal."
             className="rounded-md px-4 py-2 bg-slate-600/80 hover:bg-slate-500/80 disabled:bg-slate-700 disabled:text-slate-500 text-slate-200 font-medium transition-colors"
           >
             Reset priority

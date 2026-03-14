@@ -11,6 +11,7 @@ import { ToolGroup } from './ToolGroup';
 import { OutputLogPanel } from './OutputLogPanel';
 import {
   StepParamPanelMap,
+  StepParamPanelMapExtended,
   StepParamPanelLighting,
   StepParamPanelUProject,
   StepParamPanelArchive,
@@ -18,6 +19,7 @@ import {
   StepParamPanelPlugin,
   StepParamPanelLaunch,
   StepParamPanelMovieRenderQueue,
+  StepParamPanelResavePackages,
 } from './scheduler';
 import type { ScheduledJob, ScheduledStep } from '../types';
 import { SCHEDULABLE_STEPS } from '../types';
@@ -39,6 +41,18 @@ function StepParamPanel({
 }) {
   if (MAP_STEP_IDS.includes(step.id)) {
     return <StepParamPanelMap value={value} onChange={onChange} />;
+  }
+  if (step.id === 'resave_packages') {
+    return <StepParamPanelResavePackages value={value} onChange={onChange} />;
+  }
+  if (step.id === 'resave_actors' || step.id === 'foliage_builder' || step.id === 'navigation_data' || step.id === 'rename_duplicate') {
+    return (
+      <StepParamPanelMapExtended
+        stepId={step.id}
+        value={value}
+        onChange={onChange}
+      />
+    );
   }
   if (step.id === 'build_lighting') {
     return <StepParamPanelLighting value={value} onChange={onChange} />;
@@ -221,12 +235,7 @@ export function SchedulerTab() {
 
   return (
     <div className="flex flex-col gap-6 flex-1 min-h-0 overflow-hidden">
-      <header className="space-y-1 shrink-0">
-        <h1 className="text-xl font-semibold text-slate-100 tracking-tight">Scheduler</h1>
-        <p className="text-slate-400 text-sm">
-          Create named batch jobs as sequences of tools. Run jobs to execute steps in order.
-        </p>
-        {showBlockingBanner && (
+      {showBlockingBanner && (
           <div className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100/90">
             <p className="font-medium">Cannot run: Unreal Engine or related tools are running</p>
             <p className="mt-1 text-amber-100/80">
@@ -234,7 +243,6 @@ export function SchedulerTab() {
             </p>
           </div>
         )}
-      </header>
 
       <div
         className={`flex gap-4 min-h-0 overflow-hidden flex-1 ${
@@ -465,6 +473,7 @@ export function SchedulerTab() {
                     hasBlockingProcessesForJob(selectedJob, monitors) ||
                     runJobRunning
                   }
+                  title="Executes the job steps in sequence. Each step runs its corresponding Unreal/Git command (HLOD, Cook, etc.)."
                   className={`rounded-md px-3 py-1.5 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600/80 disabled:text-slate-500 text-white text-sm transition-colors ${
                     getBlockingMessageForJob(selectedJob, monitors) ? 'text-xs' : 'text-sm'
                   }`}
@@ -546,6 +555,7 @@ export function SchedulerTab() {
                     ? hasBlockingProcessesForJob(runDialogJob, monitors)
                     : false)
                 }
+                title="Executes the job steps in sequence. Each step runs its corresponding Unreal/Git command."
                 className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
               >
                 {runJobRunning

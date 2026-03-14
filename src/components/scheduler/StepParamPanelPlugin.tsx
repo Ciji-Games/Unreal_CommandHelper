@@ -7,7 +7,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../../hooks/useProjects';
-import type { ProjectInfo, EngineEntry } from '../../types';
+import { useEngines } from '../../hooks/useEngines';
+import type { ProjectInfo } from '../../types';
 import { getProjectDisplayLabel } from '../../utils/project';
 import { Select } from '../Select';
 
@@ -28,8 +29,8 @@ export function StepParamPanelPlugin({ value, onChange }: StepParamPanelPluginPr
   const upluginPath = (value.upluginPath as string) ?? '';
   const engineVersion = (value.engineVersion as string) ?? '';
   const createZip = (value.createZip as boolean) ?? true;
+  const { engines } = useEngines();
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
-  const [engines, setEngines] = useState<EngineEntry[]>([]);
   const [projectsWithPlugins, setProjectsWithPlugins] = useState<ProjectInfo[]>([]);
 
   const loadPluginsForProject = useCallback(async (path: string) => {
@@ -62,18 +63,6 @@ export function StepParamPanelPlugin({ value, onChange }: StepParamPanelPluginPr
     };
     check();
   }, [projects]);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const e = await invoke<EngineEntry[]>('get_installed_engine_paths');
-        setEngines(e);
-      } catch {
-        setEngines([]);
-      }
-    };
-    load();
-  }, []);
 
   useEffect(() => {
     loadPluginsForProject(projectPath);

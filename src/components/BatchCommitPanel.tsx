@@ -146,7 +146,7 @@ export function BatchCommitPanel() {
     const projectPath = selectedProject?.projectPath ?? path;
     clearLog();
     setRunning(true);
-    startProgress();
+    startProgress({ showOutputLog: true });
     try {
       const targetSizeBytes = targetSizeMb * 1024 * 1024;
       const result = await invoke<ScanResult>('scan_batch_commit', {
@@ -390,6 +390,7 @@ export function BatchCommitPanel() {
           type="button"
           onClick={handleScan}
           disabled={!selectedProjectPath || selectedProjectPath === '__browse__' || running}
+          title="Scans project directory for uncommitted and unstaged files. Groups small files for batch commits; identifies large files for Git LFS."
           className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors w-fit"
         >
           {running ? 'Scanning...' : 'Scan'}
@@ -479,6 +480,7 @@ export function BatchCommitPanel() {
                             <button
                               type="button"
                               onClick={handleAddAllToLfs}
+                              title="Adds all large files to Git LFS tracking (git lfs track)."
                               className="shrink-0 px-3 py-1.5 rounded-md text-xs font-medium bg-sky-600/80 text-white hover:bg-sky-500/80"
                             >
                               Add all to LFS
@@ -521,6 +523,7 @@ export function BatchCommitPanel() {
                                       <button
                                         type="button"
                                         onClick={() => handleRemoveFromLfs(entry.path)}
+                                        title="Removes file from Git LFS tracking (git lfs untrack)."
                                         className="shrink-0 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-600/80 text-slate-200 hover:bg-slate-500/80"
                                       >
                                         Remove from LFS
@@ -529,6 +532,7 @@ export function BatchCommitPanel() {
                                       <button
                                         type="button"
                                         onClick={() => handleAddToLfs(entry.path)}
+                                        title="Adds file to Git LFS tracking (git lfs track)."
                                         className="shrink-0 px-2 py-0.5 rounded-md text-xs font-medium bg-sky-600/80 text-white hover:bg-sky-500/80"
                                       >
                                         Add to LFS
@@ -555,6 +559,7 @@ export function BatchCommitPanel() {
                 running ||
                 !hasCommits
               }
+              title="Executes git add, git lfs migrate (for large files), and git commit for each group. Creates sequential commits."
               className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors w-fit"
             >
               {running ? 'Committing...' : 'Batch Commit'}

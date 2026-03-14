@@ -8,6 +8,7 @@ import { ShaderBoosterBackground } from './components/ShaderBoosterBackground';
 import { LogProvider } from './contexts/LogContext';
 import { ProgressProvider } from './contexts/ProgressContext';
 import { ProjectsProvider } from './contexts/ProjectsContext';
+import { EnginesProvider } from './contexts/EnginesContext';
 
 const TAB_ICONS = {
   launcher: (
@@ -44,6 +45,7 @@ function App() {
 
   return (
     <ProjectsProvider>
+      <EnginesProvider>
       <LogProvider>
         <ProgressProvider>
           <ShaderBoosterBackground />
@@ -87,6 +89,7 @@ function App() {
           </BaseLayout>
         </ProgressProvider>
       </LogProvider>
+      </EnginesProvider>
     </ProjectsProvider>
   );
 }

@@ -127,7 +127,7 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
             onClick={handleLaunchProject}
             disabled={launchDisabled}
             className="w-full px-2 py-1.5 text-xs font-medium rounded-md bg-sky-600/80 hover:bg-sky-500/80 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-sky-600/80"
-            title="Launch Unreal Engine"
+            title="Launches UnrealEditor.exe (engine entry point)."
           >
             {launchDisabled ? 'Launching…' : 'Launch'}
           </button>
@@ -184,7 +184,7 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
                 onClick={handleLaunchProject}
                 disabled={launchDisabled}
                 className="flex-1 px-2 py-1.5 text-xs font-medium rounded-l-md bg-sky-600/80 hover:bg-sky-500/80 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-sky-600/80 border-r border-sky-500/40"
-                title={`Launch ${project.projectName}`}
+                title="Launches UnrealEditor.exe with the project. Opens the editor."
               >
                 {launchDisabled ? 'Launching…' : 'Launch'}
               </button>
@@ -193,7 +193,7 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
                 onClick={() => setDropdownOpen((o) => !o)}
                 disabled={launchDisabled}
                 className="px-2 py-1.5 rounded-r-md bg-sky-600/80 hover:bg-sky-500/80 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-sky-600/80"
-                title="Launch on a specific map"
+                title="Launches UnrealEditor.exe with the project and a specific map loaded."
                 aria-label="Open map selection"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -208,7 +208,7 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
                       type="button"
                       onClick={() => handleLaunchWithMap(mapPath)}
                       className="w-full px-2 py-1.5 text-left text-xs text-slate-200 hover:bg-slate-700/80 hover:text-slate-100 truncate"
-                      title={mapPath}
+                      title={`Launches UnrealEditor.exe with project and map: ${mapPath}`}
                     >
                       {mapDisplayName(mapPath)}
                     </button>
@@ -234,7 +234,7 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
               onClick={handleLaunchSln}
               disabled={launchDisabled}
               className="w-full px-2 py-1.5 text-xs font-medium rounded-md bg-slate-600/80 hover:bg-slate-500/80 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-600/80"
-              title="Open the solution"
+              title="Opens the .sln file in the default IDE (Visual Studio or Rider)."
             >
               Open .sln
             </button>

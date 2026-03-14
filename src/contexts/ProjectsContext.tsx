@@ -43,8 +43,36 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
       if (valid.length < stored.length) {
         await store.set(STORE_KEYS.PROJECTS, valid);
       }
-      const updated = await Promise.all(
+      // Re-validate engine paths: if engine no longer exists on disk, re-analyse project
+      const enginePathsToCheck = valid
+        .filter((p) => p.engineInstallPath && p.engineInstallPath !== 'Unknown')
+        .map((p) => p.engineInstallPath);
+      const existingEnginePaths =
+        enginePathsToCheck.length > 0
+          ? await invoke<string[]>('filter_existing_paths', { paths: enginePathsToCheck })
+          : [];
+      const existingEngineSet = new Set(existingEnginePaths);
+      const withValidEngines = await Promise.all(
         valid.map(async (p) => {
+          if (
+            p.engineInstallPath &&
+            p.engineInstallPath !== 'Unknown' &&
+            !existingEngineSet.has(p.engineInstallPath)
+          ) {
+            try {
+              const fresh = await invoke<ProjectInfo>('analyse_uproject', {
+                path: p.projectPath,
+              });
+              return fresh;
+            } catch {
+              return { ...p, engineInstallPath: 'Unknown' };
+            }
+          }
+          return p;
+        })
+      );
+      const updated = await Promise.all(
+        withValidEngines.map(async (p) => {
           try {
             const freshMaps = await invoke<string[]>('scan_project_maps', {
               projectPath: p.projectPath,
@@ -61,8 +89,13 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
           return p;
         })
       );
-      const anyMapsChanged = updated.some((p, i) => p.maps !== valid[i].maps);
-      if (anyMapsChanged) {
+      const anyMapsChanged = updated.some((p, i) => p.maps !== withValidEngines[i].maps);
+      const anyEngineChanged = withValidEngines.some(
+        (p, i) =>
+          p.engineInstallPath !== valid[i].engineInstallPath ||
+          p.engineVersion !== valid[i].engineVersion
+      );
+      if (anyMapsChanged || anyEngineChanged) {
         await store.set(STORE_KEYS.PROJECTS, updated);
       }
       setProjects(updated);
