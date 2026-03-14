@@ -11,6 +11,8 @@ import fab from '../assets/fab.png';
 import logoBackend from '../assets/Logo_backend.png';
 import logoAcademy from '../assets/Logo_academy.png';
 import discord from '../assets/discord.png';
+import iconCPPGen from '../assets/IconCPPGen.png';
+import iconLDA from '../assets/IconLDA.png';
 
 export const ASSETS = {
   /** C++ badge on project cards */
@@ -25,4 +27,8 @@ export const ASSETS = {
   logoAcademy,
   /** Discord icon */
   discord,
+  /** C++ Generator icon */
+  iconCPPGen,
+  /** LD Assistant 2 icon */
+  iconLDA,
 } as const;

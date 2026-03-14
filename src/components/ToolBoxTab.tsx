@@ -27,7 +27,7 @@ const TOOLS = [
 type ToolId = (typeof TOOLS)[number]['id'];
 
 export function ToolBoxTab() {
-  const [selectedToolId, setSelectedToolId] = useState<ToolId>('regenerate');
+  const [selectedToolId, setSelectedToolId] = useState<ToolId>(TOOLS[0].id);
   const [showOutputLog, setShowOutputLog] = useState(false);
   const { running, shouldOpenOutputLog } = useProgress();
 

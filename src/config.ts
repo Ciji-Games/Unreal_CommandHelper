@@ -22,7 +22,9 @@ export const DEFAULT_SETTINGS = {
 export interface LinkEntry {
   url: string;
   label: string;
-  icon?: 'ueIcon' | 'cppLogo' | 'fab' | 'logoBackend' | 'logoAcademy' | 'discord';
+  icon?: 'ueIcon' | 'cppLogo' | 'fab' | 'logoBackend' | 'logoAcademy' | 'discord' | 'iconCPPGen' | 'iconLDA';
+  /** When true, thumbnail fills the card with no padding. */
+  fullThumbnail?: boolean;
 }
 
 /** Category with its links. */
@@ -52,9 +54,11 @@ export const LINK_CATEGORIES: LinkCategory[] = [
   {
     name: 'Ciji Games',
     links: [
-      { url: 'https://ciji.dev/', label: 'Gamedev backend', icon: 'logoBackend' },
-      { url: 'https://academy.cijigames.com/', label: 'French U.E Courses', icon: 'logoAcademy' },
+      { url: 'https://ciji.dev/', label: 'Gamedev backend', icon: 'logoBackend', fullThumbnail: true },
+      { url: 'https://academy.cijigames.com/', label: 'French U.E Courses', icon: 'logoAcademy', fullThumbnail: true },
       { url: 'https://www.fab.com/sellers/Ciji%20Games', label: 'Ciji Games on FAB', icon: 'fab' },
+      { url: 'https://www.fab.com/listings/6f1236ea-3587-4cdc-808c-1624ce0b9500', label: 'C++ Generator', icon: 'iconCPPGen', fullThumbnail: true },
+      { url: 'https://www.fab.com/listings/e799c9aa-57f9-4840-8ad7-3a6b271cdd39', label: 'LD Assistant 2', icon: 'iconLDA', fullThumbnail: true },
     ],
   },
 ];
