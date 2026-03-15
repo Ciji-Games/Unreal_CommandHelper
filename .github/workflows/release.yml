@@ -44,11 +44,14 @@ jobs:
           prerelease: false
           tauriScript: npx tauri
 
-      - name: commit version bump
+      - name: create PR for version bump
         if: github.ref == 'refs/heads/release'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH_NAME="chore/bump-version-${{ env.APP_VERSION }}-${{ github.run_id }}"
+          git checkout -b "$BRANCH_NAME"
           git add src-tauri/tauri.conf.json src-tauri/Cargo.toml
-          git diff --staged --quiet || git commit -m "chore: bump version [skip ci]"
-          git push
+          git diff --staged --quiet || git commit -m "chore: bump version to ${{ env.APP_VERSION }} [skip ci]"
+          git push origin "$BRANCH_NAME"
+          gh pr create --base release --head "$BRANCH_NAME" --title "chore: bump version to ${{ env.APP_VERSION }}" --body "Automated version bump after release. Merge to update the release branch."
