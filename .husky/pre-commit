@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Only bump version when committing on release branch
+if [ "$(git branch --show-current)" = "release" ]; then
+  node scripts/bump-version.cjs
+  git add src-tauri/tauri.conf.json src-tauri/Cargo.toml
+fi
