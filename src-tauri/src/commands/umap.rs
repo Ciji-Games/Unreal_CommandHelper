@@ -65,8 +65,11 @@ pub async fn run_map_command(
         ToolMode::DeleteHlod
     } else if builder == "WorldPartitionMiniMapBuilder" {
         ToolMode::BuildMiniMap
-    } else {
+    } else if builder == "WorldPartitionHLODsBuilder" {
         ToolMode::BuildHlod
+    } else {
+        // ResaveActors, Foliage, NavigationData, RenameDuplicate - use Generic to parse [N/M] patterns
+        ToolMode::Generic
     };
 
     stream_processor::emit_log(

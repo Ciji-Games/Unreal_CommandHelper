@@ -119,6 +119,103 @@ pub async fn run_cook(
     result
 }
 
+/// ResavePackages: UnrealEditor.exe "project.uproject" -run=ResavePackages [options] -unattended -log
+/// Resaves packages/assets, fixes redirectors, optional autocheckout/autocheckin.
+#[tauri::command]
+pub async fn run_resave_packages(
+    project_path: String,
+    engine_path: String,
+    fixup_redirects: bool,
+    autocheckout: bool,
+    project_only: bool,
+    autocheckin: bool,
+    app: AppHandle,
+) -> Result<(), String> {
+    if monitor::has_blocking_processes("uproject".to_string())? {
+        return Err(
+            "Cannot run ResavePackages: Unreal Engine is running. Close it first.".to_string(),
+        );
+    }
+
+    let uproj = Path::new(&project_path);
+    if !uproj.exists() || uproj.extension().map_or(true, |e| e != "uproject") {
+        return Err("Invalid or missing .uproject file".to_string());
+    }
+
+    let editor_exe = Path::new(&engine_path);
+    if !editor_exe.exists() {
+        stream_processor::emit_log(&app, "[ERROR] UnrealEditor.exe not found.", Some("red"));
+        return Err("Engine path not found".to_string());
+    }
+
+    let bin_dir = editor_exe.parent().ok_or("Invalid engine path")?;
+    let cwd = bin_dir.to_str().ok_or("Invalid Binaries path")?.to_string();
+
+    let mut args = vec![
+        project_path.clone(),
+        "-run=ResavePackages".to_string(),
+    ];
+    if fixup_redirects {
+        args.push("-fixupredirects".to_string());
+    }
+    if autocheckout {
+        args.push("-autocheckout".to_string());
+    }
+    if project_only {
+        args.push("-projectonly".to_string());
+    }
+    if autocheckin {
+        args.push("-autocheckin".to_string());
+    }
+    args.push("-unattended".to_string());
+    args.push("-log".to_string());
+
+    stream_processor::emit_log(&app, "Running ResavePackages...", Some("blue"));
+    stream_processor::emit_log(
+        &app,
+        &format!("Command: {} {}", engine_path, args.join(" ")),
+        Some("gray"),
+    );
+
+    let result = tokio::task::spawn_blocking({
+        let app = app.clone();
+        let engine_path = engine_path.clone();
+        let cwd = cwd.clone();
+        let args = args.clone();
+        move || -> Result<(), String> {
+            let mut cmd = build_cmd(&engine_path, &args, Some(&cwd));
+            cmd.stdout(std::process::Stdio::piped());
+            cmd.stderr(std::process::Stdio::piped());
+
+            let mut child = cmd.spawn().map_err(|e| e.to_string())?;
+            running_process::set_running_pid(child.id());
+            let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+            let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
+            let stdout_reader = std::io::BufReader::new(stdout);
+            let stderr_reader = std::io::BufReader::new(stderr);
+            process_streams(stdout_reader, stderr_reader, app.clone(), ToolMode::Generic);
+
+            let status = child.wait().map_err(|e| e.to_string())?;
+            running_process::clear_running_pid();
+            if status.success() {
+                stream_processor::emit_log(&app, "ResavePackages completed successfully!", Some("green"));
+                Ok(())
+            } else {
+                stream_processor::emit_log(
+                    &app,
+                    &format!("ResavePackages exited with code: {:?}", status.code()),
+                    Some("red"),
+                );
+                Err("ResavePackages failed".to_string())
+            }
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    result
+}
+
 /// Package (BuildCookRun): RunUAT.bat BuildCookRun -project="path" -platform=Win64 -clientconfig=Development -build -cook -stage -pak -archive -archivedirectory="..."
 #[tauri::command]
 pub async fn run_package(

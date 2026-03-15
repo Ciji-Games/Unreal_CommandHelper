@@ -3,9 +3,9 @@
  * Mirrors TabLauncher layout from Form1 (projectList1, projectList2).
  */
 
-import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useProjects } from '../hooks/useProjects';
+import { useEngines } from '../hooks/useEngines';
 import { useScheduledJobs } from '../hooks/useScheduledJobs';
 import { useRunScheduledJob } from '../hooks/useRunScheduledJob';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
@@ -17,6 +17,7 @@ import type { ProjectInfo, EngineEntry } from '../types';
 
 export function LauncherTab() {
   const { projects, addProject, removeProject, refresh, loading: projectsLoading } = useProjects();
+  const { engines, loading: enginesLoading } = useEngines();
   const { jobs } = useScheduledJobs();
   const { runJob, running: runJobRunning } = useRunScheduledJob();
   const umapMonitor = useProcessMonitor('umap');
@@ -27,17 +28,8 @@ export function LauncherTab() {
     uproject: uprojectMonitor,
     regenerate: regenerateMonitor,
   };
-  const [engines, setEngines] = useState<EngineEntry[]>([]);
-  const [loading, setLoading] = useState(true);
 
   const pinnedJobs = jobs.filter((j) => j.pinned);
-
-  useEffect(() => {
-    invoke<EngineEntry[]>('get_installed_engine_paths')
-      .then(setEngines)
-      .catch(() => setEngines([]))
-      .finally(() => setLoading(false));
-  }, []);
 
   const handleAddProject = async (uprojectPath: string) => {
     try {
@@ -63,17 +55,10 @@ export function LauncherTab() {
 
   return (
     <div className="space-y-8">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold text-slate-100 tracking-tight">UE Launcher</h1>
-        <p className="text-slate-400 text-sm">
-          Unreal Engine project launcher and toolbox
-        </p>
-      </header>
-
       {/* Engine Versions */}
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-slate-300 uppercase tracking-wider">Engine Versions</h2>
-        {loading ? (
+        {enginesLoading ? (
           <p className="text-slate-500 text-sm">Loading engines...</p>
         ) : (
           <div className="flex flex-wrap gap-3">

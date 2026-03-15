@@ -39,12 +39,6 @@ export function ToolBoxTab() {
 
   return (
     <div className="flex flex-col gap-6 flex-1 min-h-0">
-      <header className="space-y-1 shrink-0">
-        <h1 className="text-xl font-semibold text-slate-100 tracking-tight">ToolBox</h1>
-        <p className="text-slate-400 text-sm">
-          Regenerate, UMap, plugins, and other project tools.
-        </p>
-      </header>
       {/* Tool area - fixed 60% of vertical space for stable layout when switching tools */}
       <div
         className={`flex gap-4 min-h-0 overflow-hidden transition-all flex-1 ${

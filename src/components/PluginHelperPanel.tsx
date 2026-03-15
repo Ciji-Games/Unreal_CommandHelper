@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../hooks/useProjects';
+import { useEngines } from '../hooks/useEngines';
 import { useLog } from '../contexts/LogContext';
 import { useProgress } from '../contexts/ProgressContext';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
@@ -14,7 +15,6 @@ import { ToolGroup } from './ToolGroup';
 import { Select } from './Select';
 import type { ProjectInfo } from '../types';
 import { getProjectDisplayLabel } from '../utils/project';
-import type { EngineEntry } from '../types';
 
 const PLUGIN_PROCESS_GROUP = 'umap';
 
@@ -30,10 +30,10 @@ export function PluginHelperPanel() {
   const { startProgress, finishProgress } = useProgress();
   const { runningProcesses: blockingProcesses, hasBlockingProcesses } =
     useProcessMonitor(PLUGIN_PROCESS_GROUP);
+  const { engines } = useEngines();
   const [selectedProjectPath, setSelectedProjectPath] = useState<string>('');
   const [selectedPlugin, setSelectedPlugin] = useState<PluginInfo | null>(null);
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
-  const [engines, setEngines] = useState<EngineEntry[]>([]);
   const [selectedEngineVersion, setSelectedEngineVersion] = useState<string>('');
   const [createZip, setCreateZip] = useState(true);
   const [running, setRunning] = useState(false);
@@ -41,17 +41,20 @@ export function PluginHelperPanel() {
   // Projects that have a Plugins folder
   const [projectsWithPlugins, setProjectsWithPlugins] = useState<ProjectInfo[]>([]);
 
-  const loadEngines = useCallback(async () => {
-    try {
-      const e = await invoke<EngineEntry[]>('get_installed_engine_paths');
-      setEngines(e);
-      if (e.length > 0 && !selectedEngineVersion) {
-        setSelectedEngineVersion(e[0].version);
-      }
-    } catch {
-      setEngines([]);
+  // Clear selected engine if it's no longer in the validated list
+  useEffect(() => {
+    if (engines.length > 0 && !selectedEngineVersion) {
+      setSelectedEngineVersion(engines[0].version);
+    } else if (
+      selectedEngineVersion &&
+      engines.length > 0 &&
+      !engines.some((e) => e.version === selectedEngineVersion)
+    ) {
+      setSelectedEngineVersion(engines[0].version);
+    } else if (selectedEngineVersion && engines.length === 0) {
+      setSelectedEngineVersion('');
     }
-  }, [selectedEngineVersion]);
+  }, [engines, selectedEngineVersion]);
 
   const loadPluginsForProject = useCallback(async (projectPath: string) => {
     if (!projectPath) {
@@ -89,10 +92,6 @@ export function PluginHelperPanel() {
     };
     checkPlugins();
   }, [projects]);
-
-  useEffect(() => {
-    loadEngines();
-  }, [loadEngines]);
 
   useEffect(() => {
     loadPluginsForProject(selectedProjectPath);
@@ -138,7 +137,7 @@ export function PluginHelperPanel() {
 
     clearLog();
     setRunning(true);
-    startProgress();
+    startProgress({ showOutputLog: true });
     try {
       const result = await invoke<string>('build_plugin', {
         upluginPath: selectedPlugin.upluginPath,
@@ -237,6 +236,7 @@ export function PluginHelperPanel() {
             selectedProjectPath === '__browse__' ||
             hasBlockingProcesses
           }
+          title="Runs RunUAT BuildPlugin. Compiles the plugin for the selected engine version."
           className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
         >
           {running ? 'Building...' : 'Build Plugin'}

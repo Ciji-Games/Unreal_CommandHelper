@@ -29,7 +29,7 @@ export function PinnedJobCard({ job, onRun, disabled, blockingMessage, running }
           onClick={() => onRun(job)}
           disabled={disabled}
           className="w-full px-2 py-1.5 text-xs font-medium rounded-md bg-sky-600/80 hover:bg-sky-500/80 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-sky-600/80"
-          title={blockingMessage ?? `Run ${job.name}`}
+          title={blockingMessage ?? `Executes job steps in sequence. Each step runs its corresponding Unreal/Git command.`}
         >
           {buttonLabel}
         </button>

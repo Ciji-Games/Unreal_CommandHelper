@@ -1,4 +1,5 @@
 export { StepParamPanelMap } from './StepParamPanelMap';
+export { StepParamPanelMapExtended } from './StepParamPanelMapExtended';
 export { StepParamPanelLighting } from './StepParamPanelLighting';
 export { StepParamPanelUProject } from './StepParamPanelUProject';
 export { StepParamPanelArchive } from './StepParamPanelArchive';
@@ -6,3 +7,4 @@ export { StepParamPanelRegenerate } from './StepParamPanelRegenerate';
 export { StepParamPanelPlugin } from './StepParamPanelPlugin';
 export { StepParamPanelLaunch } from './StepParamPanelLaunch';
 export { StepParamPanelMovieRenderQueue } from './StepParamPanelMovieRenderQueue';
+export { StepParamPanelResavePackages } from './StepParamPanelResavePackages';

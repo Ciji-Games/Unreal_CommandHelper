@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { BaseLayout } from './components/BaseLayout';
 import { LauncherTab } from './components/LauncherTab';
 import { ToolBoxTab } from './components/ToolBoxTab';
@@ -8,6 +9,7 @@ import { ShaderBoosterBackground } from './components/ShaderBoosterBackground';
 import { LogProvider } from './contexts/LogContext';
 import { ProgressProvider } from './contexts/ProgressContext';
 import { ProjectsProvider } from './contexts/ProjectsContext';
+import { EnginesProvider } from './contexts/EnginesContext';
 
 const TAB_ICONS = {
   launcher: (
@@ -44,13 +46,14 @@ function App() {
 
   return (
     <ProjectsProvider>
+      <EnginesProvider>
       <LogProvider>
         <ProgressProvider>
           <ShaderBoosterBackground />
           <BaseLayout>
             <div className="flex flex-col gap-6 min-h-0 flex-1">
               {/* Tab navigation - horizontal, full width, with icons */}
-              <nav className="flex gap-1 border-b border-slate-700/80 pb-0 shrink-0">
+              <nav className="flex gap-1 border-b border-slate-700/80 pb-0 shrink-0 items-center">
                 {TABS.map((tab) => (
                   <button
                     key={tab.id}
@@ -66,6 +69,23 @@ function App() {
                     {tab.label}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await openUrl('https://github.com/Ciji-Games/Unreal_CommandHelper');
+                    } catch (e) {
+                      console.error('Failed to open documentation:', e);
+                    }
+                  }}
+                  className="ml-auto p-2 rounded text-slate-500 hover:text-sky-400 hover:bg-slate-800/40 transition-colors"
+                  title="Open documentation"
+                  aria-label="Open documentation"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                </button>
               </nav>
 
               {/* Tab content - overflow-visible so dropdowns can overflow in all tabs */}
@@ -87,6 +107,7 @@ function App() {
           </BaseLayout>
         </ProgressProvider>
       </LogProvider>
+      </EnginesProvider>
     </ProjectsProvider>
   );
 }
