@@ -49,11 +49,7 @@ pub async fn run_movie_render_queue(
 
     let cwd = bin_dir.to_str().ok_or("Invalid Binaries path")?.to_string();
 
-    let mut args = vec![
-        project_path.clone(),
-        map_path.clone(),
-        "-game".to_string(),
-    ];
+    let mut args = vec![project_path.clone(), map_path.clone(), "-game".to_string()];
 
     if let Some(ref seq) = level_sequence {
         if !seq.is_empty() {
@@ -68,11 +64,7 @@ pub async fn run_movie_render_queue(
     args.push("-allowStdOutLogVerbosity".to_string());
     args.push("-Unattended".to_string());
 
-    stream_processor::emit_log(
-        &app,
-        "Running Movie Render Queue...",
-        Some("blue"),
-    );
+    stream_processor::emit_log(&app, "Running Movie Render Queue...", Some("blue"));
     stream_processor::emit_log(
         &app,
         &format!("Command: {} {}", editor_cmd, args.join(" ")),

@@ -2,6 +2,8 @@
  * Store keys and default values
  */
 
+import type { CustomEngineEntry } from './types';
+
 export const STORE_PATH = 'ue-launcher-store.json';
 
 export const STORE_KEYS = {
@@ -10,13 +12,23 @@ export const STORE_KEYS = {
   UNREAL_VERSION_SELECTOR_PATH: 'unrealVersionSelectorPath',
   AUTO_SWITCH_BOOSTER: 'autoSwitchBooster',
   PRIORITY_BOOSTER: 'priorityBooster',
+  START_WITH_WINDOWS: 'startWithWindows',
+  CUSTOM_ENGINES: 'customEngines',
+  DISABLED_ENGINE_PATHS: 'disabledEnginePaths',
+  PROJECT_ENGINE_OVERRIDES: 'projectEngineOverrides',
+  DEFAULT_ENGINE_BY_VERSION: 'defaultEngineByVersion',
 } as const;
 
 export const DEFAULT_SETTINGS = {
   unrealVersionSelectorPath: '',
   autoSwitchBooster: false,
   priorityBooster: 0, // 0=BelowNormal, 1=Normal, 2=AboveNormal, 3=High
-} as const;
+  startWithWindows: false,
+  customEngines: [] as CustomEngineEntry[],
+  disabledEnginePaths: [] as string[],
+  projectEngineOverrides: {} as Record<string, string>,
+  defaultEngineByVersion: {} as Record<string, string>,
+};
 
 /** Link entry for the Links tab. icon is optional asset key or undefined for default. */
 export interface LinkEntry {

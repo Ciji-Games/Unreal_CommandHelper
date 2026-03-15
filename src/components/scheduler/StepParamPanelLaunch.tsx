@@ -7,8 +7,10 @@
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../../hooks/useProjects';
+import { useEngines } from '../../hooks/useEngines';
+import { useSettings } from '../../hooks/useSettings';
 import type { ProjectInfo } from '../../types';
-import { getProjectDisplayLabel } from '../../utils/project';
+import { getProjectDisplayLabel, getEngineSelectOptions, getShortEngineVersion } from '../../utils/project';
 import { Select } from '../Select';
 
 interface StepParamPanelLaunchProps {
@@ -18,11 +20,26 @@ interface StepParamPanelLaunchProps {
 
 export function StepParamPanelLaunch({ value, onChange }: StepParamPanelLaunchProps) {
   const { projects, addProject } = useProjects();
+  const { engines } = useEngines();
+  const { settings } = useSettings();
   const projectPath = (value.project as string) ?? '';
   const mapPath = (value.map as string) ?? '';
+  const engineOverride = (value.enginePath as string) ?? '';
 
   const selectedProject = projects.find((p) => p.projectPath === projectPath);
   const maps = selectedProject?.maps ?? [];
+  const effectiveEnginePath =
+    engineOverride ||
+    settings.projectEngineOverrides?.[projectPath] ||
+    selectedProject?.engineInstallPath ||
+    '';
+  const selectedEngine = engines.find((e) => e.editorPath === effectiveEnginePath);
+  const projectVersionShort = selectedProject ? getShortEngineVersion(selectedProject.engineVersion) : '';
+  const engineVersionShort = selectedEngine ? getShortEngineVersion(selectedEngine.version) : '';
+  const versionMismatch =
+    projectVersionShort &&
+    engineVersionShort &&
+    projectVersionShort !== engineVersionShort;
 
   const handleProjectChange = async (v: string) => {
     if (v === '__browse__') {
@@ -40,7 +57,7 @@ export function StepParamPanelLaunch({ value, onChange }: StepParamPanelLaunchPr
         }
       }
     } else {
-      onChange({ ...value, project: v, map: maps.includes(mapPath) ? mapPath : '' });
+      onChange({ ...value, project: v, map: maps.includes(mapPath) ? mapPath : '', enginePath: '' });
     }
   };
 
@@ -73,6 +90,25 @@ export function StepParamPanelLaunch({ value, onChange }: StepParamPanelLaunchPr
           <p className="mt-1 text-xs text-slate-500">No .umap files found in Content/</p>
         )}
       </div>
+      {projectPath && engines.length > 0 && (
+        <div>
+          <label className="block text-sm text-slate-300 mb-1">Engine (optional override)</label>
+          <Select
+            value={engineOverride}
+            onChange={(v) => onChange({ ...value, enginePath: v })}
+            placeholder="Use project default"
+            options={[
+              { value: '', label: 'Use project default' },
+              ...getEngineSelectOptions(engines),
+            ]}
+          />
+          {versionMismatch && (
+            <p className="mt-1 text-xs text-amber-400">
+              Engine version {engineVersionShort} does not match project version {projectVersionShort}. This may cause compatibility issues.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

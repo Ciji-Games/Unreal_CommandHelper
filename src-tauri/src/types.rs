@@ -18,4 +18,13 @@ pub struct ProjectInfo {
 pub struct EngineEntry {
     pub version: String,
     pub editor_path: String,
+    /// Custom display name (e.g. "UE 5.4 Custom Build"). Only for custom engines.
+    #[serde(default)]
+    pub display_name: Option<String>,
+    /// True if user-added, not from registry.
+    #[serde(default)]
+    pub is_custom: bool,
+    /// Unique ID for custom engines (e.g. UUID). Registry engines use editor_path as id.
+    #[serde(default)]
+    pub id: Option<String>,
 }

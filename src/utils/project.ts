@@ -2,7 +2,7 @@
  * Project display utilities.
  */
 
-import type { ProjectInfo } from '../types';
+import type { ProjectInfo, EngineEntry } from '../types';
 
 /**
  * Returns the short engine version (e.g. "5.7") from a full version string.
@@ -23,4 +23,27 @@ export function getShortEngineVersion(engineVersion: string): string {
 export function getProjectDisplayLabel(project: ProjectInfo): string {
   const short = getShortEngineVersion(project.engineVersion);
   return short ? `${project.projectName} (${short})` : project.projectName;
+}
+
+/**
+ * Returns display label for an engine in dropdowns.
+ * Custom engines: "DisplayName (version)", registry: "version"
+ */
+export function getEngineLabel(engine: EngineEntry): string {
+  if (engine.isCustom && engine.displayName) {
+    return `${engine.displayName} (${engine.version})`;
+  }
+  return engine.version;
+}
+
+/**
+ * Options for engine Select dropdown: value=editorPath, label=display
+ */
+export function getEngineSelectOptions(
+  engines: EngineEntry[]
+): { value: string; label: string }[] {
+  return engines.map((e) => ({
+    value: e.editorPath,
+    label: getEngineLabel(e),
+  }));
 }

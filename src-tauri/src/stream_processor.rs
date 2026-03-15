@@ -43,10 +43,13 @@ pub fn emit_log(app: &AppHandle, line: &str, explicit_color: Option<&str>) {
             None
         }
     });
-    let _ = app.emit("log-output", LogEvent {
-        line: line.to_string(),
-        color,
-    });
+    let _ = app.emit(
+        "log-output",
+        LogEvent {
+            line: line.to_string(),
+            color,
+        },
+    );
 }
 
 /// Spawn threads to process stdout and stderr. Call this after spawning a process.

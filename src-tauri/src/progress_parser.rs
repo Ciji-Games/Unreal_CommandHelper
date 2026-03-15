@@ -96,17 +96,13 @@ fn cook_packages_regex() -> &'static Regex {
 
 fn wp_processing_cell_regex() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| {
-        Regex::new(r"\[(\d+)\s*/\s*(\d+)\] Processing cell")
-            .expect("invalid regex")
-    })
+    RE.get_or_init(|| Regex::new(r"\[(\d+)\s*/\s*(\d+)\] Processing cell").expect("invalid regex"))
 }
 
 fn wp_building_hlod_regex() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r"\[(\d+)\s*/\s*(\d+)\] Building HLOD actor")
-            .expect("invalid regex")
+        Regex::new(r"\[(\d+)\s*/\s*(\d+)\] Building HLOD actor").expect("invalid regex")
     })
 }
 
@@ -117,10 +113,7 @@ fn wp_deleting_regex() -> &'static Regex {
 
 fn wp_minimap_cells_regex() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| {
-        Regex::new(r"\[(\d+)\s*/\s*(\d+)\] Processing cells")
-            .expect("invalid regex")
-    })
+    RE.get_or_init(|| Regex::new(r"\[(\d+)\s*/\s*(\d+)\] Processing cells").expect("invalid regex"))
 }
 
 /// Parse a line and update progress state. Returns Some(ProgressUpdate) when percent changed.
@@ -186,8 +179,14 @@ pub fn parse_line(line: &str, state: &mut ProgressState) -> Option<ProgressUpdat
     // Cook packages: Cooked packages X Packages Remain Y Total Z
     if state.tool_mode == ToolMode::Cook || state.tool_mode == ToolMode::Package {
         if let Some(caps) = cook_packages_regex().captures(line) {
-            let cooked: u32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-            let total: u32 = caps.get(3).and_then(|m| m.as_str().parse().ok()).unwrap_or(1);
+            let cooked: u32 = caps
+                .get(1)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(0);
+            let total: u32 = caps
+                .get(3)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(1);
             if total > 0 {
                 state.phase_step_current = cooked;
                 state.phase_step_total = total;
@@ -202,8 +201,14 @@ pub fn parse_line(line: &str, state: &mut ProgressState) -> Option<ProgressUpdat
         || state.tool_mode == ToolMode::Regenerate
     {
         if let Some(caps) = build_steps_regex().captures(line) {
-            let current: u32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-            let total: u32 = caps.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(1);
+            let current: u32 = caps
+                .get(1)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(0);
+            let total: u32 = caps
+                .get(2)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(1);
             if total > 0 {
                 state.phase_step_current = current;
                 state.phase_step_total = total;
@@ -215,8 +220,14 @@ pub fn parse_line(line: &str, state: &mut ProgressState) -> Option<ProgressUpdat
     // WP Processing cell [N/M]
     if state.tool_mode == ToolMode::BuildHlod {
         if let Some(caps) = wp_processing_cell_regex().captures(line) {
-            let current: u32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-            let total: u32 = caps.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(1);
+            let current: u32 = caps
+                .get(1)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(0);
+            let total: u32 = caps
+                .get(2)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(1);
             if total > 0 {
                 state.phase_step_current = current;
                 state.phase_step_total = total;
@@ -224,8 +235,14 @@ pub fn parse_line(line: &str, state: &mut ProgressState) -> Option<ProgressUpdat
             }
         }
         if let Some(caps) = wp_building_hlod_regex().captures(line) {
-            let current: u32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-            let total: u32 = caps.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(1);
+            let current: u32 = caps
+                .get(1)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(0);
+            let total: u32 = caps
+                .get(2)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(1);
             if total > 0 {
                 state.phase_step_current = current;
                 state.phase_step_total = total;
@@ -236,8 +253,14 @@ pub fn parse_line(line: &str, state: &mut ProgressState) -> Option<ProgressUpdat
 
     if state.tool_mode == ToolMode::DeleteHlod {
         if let Some(caps) = wp_deleting_regex().captures(line) {
-            let current: u32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-            let total: u32 = caps.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(1);
+            let current: u32 = caps
+                .get(1)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(0);
+            let total: u32 = caps
+                .get(2)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(1);
             if total > 0 {
                 state.phase_step_current = current;
                 state.phase_step_total = total;
@@ -248,8 +271,14 @@ pub fn parse_line(line: &str, state: &mut ProgressState) -> Option<ProgressUpdat
 
     if state.tool_mode == ToolMode::BuildMiniMap {
         if let Some(caps) = wp_minimap_cells_regex().captures(line) {
-            let current: u32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-            let total: u32 = caps.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(1);
+            let current: u32 = caps
+                .get(1)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(0);
+            let total: u32 = caps
+                .get(2)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(1);
             if total > 0 {
                 state.phase_step_current = current;
                 state.phase_step_total = total;
@@ -260,8 +289,14 @@ pub fn parse_line(line: &str, state: &mut ProgressState) -> Option<ProgressUpdat
 
     if state.tool_mode == ToolMode::Generic {
         if let Some(caps) = build_steps_regex().captures(line) {
-            let current: u32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-            let total: u32 = caps.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(1);
+            let current: u32 = caps
+                .get(1)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(0);
+            let total: u32 = caps
+                .get(2)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(1);
             if total > 0 {
                 state.phase_step_current = current;
                 state.phase_step_total = total;

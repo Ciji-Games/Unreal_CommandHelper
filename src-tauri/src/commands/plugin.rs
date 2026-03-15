@@ -39,7 +39,9 @@ pub fn list_plugins_for_project(project_path: String) -> Result<Vec<PluginInfo>,
     }
 
     let mut plugins = Vec::new();
-    for entry in fs::read_dir(&plugins_dir).map_err(|e| format!("Failed to read Plugins dir: {}", e))? {
+    for entry in
+        fs::read_dir(&plugins_dir).map_err(|e| format!("Failed to read Plugins dir: {}", e))?
+    {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
         if path.is_dir() {
@@ -48,7 +50,11 @@ pub fn list_plugins_for_project(project_path: String) -> Result<Vec<PluginInfo>,
                 if let Ok(e) = uplugin {
                     let p = e.path();
                     if p.extension().map_or(false, |ext| ext == "uplugin") {
-                        let name = p.file_stem().and_then(|s| s.to_str()).unwrap_or("Unknown").to_string();
+                        let name = p
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("Unknown")
+                            .to_string();
                         plugins.push(PluginInfo {
                             name: name.clone(),
                             uplugin_path: p.to_string_lossy().to_string(),
@@ -60,8 +66,15 @@ pub fn list_plugins_for_project(project_path: String) -> Result<Vec<PluginInfo>,
             }
         } else if path.extension().map_or(false, |e| e == "uplugin") {
             // Plugins/PluginName.uplugin (single-file plugin)
-            let name = path.file_stem().and_then(|s| s.to_str()).unwrap_or("Unknown").to_string();
-            let folder = path.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
+            let name = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("Unknown")
+                .to_string();
+            let folder = path
+                .parent()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_default();
             plugins.push(PluginInfo {
                 name: name.clone(),
                 uplugin_path: path.to_string_lossy().to_string(),
@@ -84,19 +97,17 @@ fn editor_path_to_engine_root(editor_path: &str) -> Option<std::path::PathBuf> {
 }
 
 /// Build a plugin using RunUAT BuildPlugin. Optionally zip the result.
-/// engine_version: e.g. "5.4" - used to look up engine path from registry.
+/// engine_path: path to UnrealEditor.exe (supports custom engines).
 /// create_zip: if true, zip the Build output as {plugin_name}_{engine_version}.zip
 #[tauri::command]
 pub async fn build_plugin(
     uplugin_path: String,
-    engine_version: String,
+    engine_path: String,
     create_zip: bool,
     app: AppHandle,
 ) -> Result<String, String> {
     if monitor::has_blocking_processes("umap".to_string())? {
-        return Err(
-            "Cannot build plugin: Unreal Engine is running. Close it first.".to_string(),
-        );
+        return Err("Cannot build plugin: Unreal Engine is running. Close it first.".to_string());
     }
 
     let uplugin = Path::new(&uplugin_path);
@@ -104,25 +115,24 @@ pub async fn build_plugin(
         return Err("Invalid or missing .uplugin file".to_string());
     }
 
-    let plugin_folder = uplugin
-        .parent()
-        .ok_or("Invalid plugin path")?
-        .to_path_buf();
+    let plugin_folder = uplugin.parent().ok_or("Invalid plugin path")?.to_path_buf();
     let plugin_name = uplugin
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("Plugin")
         .to_string();
 
-    // Resolve engine path from registry
-    let engines = registry::get_installed_engine_paths().map_err(|e| e.to_string())?;
-    let engine_entry = engines
-        .into_iter()
-        .find(|e| e.version == engine_version || e.version.starts_with(&engine_version));
-    let editor_path = match engine_entry {
-        Some(e) => e.editor_path,
-        None => return Err(format!("Engine version {} not found in registry", engine_version)),
-    };
+    if engine_path.is_empty() {
+        return Err("Engine path is required".to_string());
+    }
+
+    let editor_path = engine_path;
+    if !Path::new(&editor_path).exists() {
+        return Err(format!("Engine path does not exist: {}", editor_path));
+    }
+
+    let engine_version = registry::read_engine_version_from_path(editor_path.clone())
+        .unwrap_or_else(|_| "Unknown".to_string());
 
     let engine_root = editor_path_to_engine_root(&editor_path)
         .ok_or("Could not resolve engine root from editor path")?;
@@ -142,10 +152,21 @@ pub async fn build_plugin(
         .ok_or("Invalid BatchFiles path")?
         .to_string();
 
-    stream_processor::emit_log(&app, &format!("Building plugin: {} for engine {}", plugin_name, engine_version), Some("blue"));
     stream_processor::emit_log(
         &app,
-        &format!("Plugin: {} -> Package: {}", uplugin_path, package_dir.display()),
+        &format!(
+            "Building plugin: {} for engine {}",
+            plugin_name, engine_version
+        ),
+        Some("blue"),
+    );
+    stream_processor::emit_log(
+        &app,
+        &format!(
+            "Plugin: {} -> Package: {}",
+            uplugin_path,
+            package_dir.display()
+        ),
         None,
     );
 
@@ -204,7 +225,8 @@ pub async fn build_plugin(
                 let zip_path = plugins_folder.join(&zip_name);
                 stream_processor::emit_log(&app, &format!("Zipping: {}", zip_name), Some("blue"));
 
-                let file = fs::File::create(&zip_path).map_err(|e| format!("Failed to create zip: {}", e))?;
+                let file = fs::File::create(&zip_path)
+                    .map_err(|e| format!("Failed to create zip: {}", e))?;
                 let mut zip_writer = zip::ZipWriter::new(file);
                 let options = zip::write::SimpleFileOptions::default()
                     .compression_method(zip::CompressionMethod::Deflated)
@@ -212,7 +234,10 @@ pub async fn build_plugin(
 
                 // Zip contents with PluginName/ as root (matches BuildPlugin.bat behavior)
                 let root_in_zip = format!("{}/", plugin_name);
-                for entry in WalkDir::new(&build_output).into_iter().filter_map(Result::ok) {
+                for entry in WalkDir::new(&build_output)
+                    .into_iter()
+                    .filter_map(Result::ok)
+                {
                     let path = entry.path();
                     if path.is_file() {
                         let rel = path.strip_prefix(&build_output).unwrap_or(path);
@@ -228,7 +253,11 @@ pub async fn build_plugin(
                 zip_writer.finish().map_err(|e| e.to_string())?;
 
                 result_path = zip_path.to_string_lossy().to_string();
-                stream_processor::emit_log(&app, &format!("Zipped successfully: {}", result_path), Some("green"));
+                stream_processor::emit_log(
+                    &app,
+                    &format!("Zipped successfully: {}", result_path),
+                    Some("green"),
+                );
             } else {
                 stream_processor::emit_log(&app, "Build completed successfully.", Some("green"));
             }

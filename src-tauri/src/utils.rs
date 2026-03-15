@@ -80,7 +80,9 @@ pub struct SpawnMinimizedChild {
 impl SpawnMinimizedChild {
     pub fn wait(&mut self) -> Result<(), String> {
         use windows::Win32::Foundation::{CloseHandle, WAIT_OBJECT_0};
-        use windows::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject, INFINITE};
+        use windows::Win32::System::Threading::{
+            GetExitCodeProcess, WaitForSingleObject, INFINITE,
+        };
 
         unsafe {
             let r = WaitForSingleObject(self.process_handle, INFINITE);

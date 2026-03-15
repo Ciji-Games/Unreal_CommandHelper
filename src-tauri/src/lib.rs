@@ -8,6 +8,7 @@ mod utils;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::default().build())
@@ -19,6 +20,8 @@ pub fn run() {
             commands::batch_commit::batch_commit,
             commands::registry::get_unreal_version_selector_path,
             commands::registry::get_installed_engine_paths,
+            commands::registry::validate_engine_path,
+            commands::registry::read_engine_version_from_path,
             commands::projects::analyse_uproject,
             commands::projects::get_project_thumbnail_path,
             commands::projects::filter_existing_paths,

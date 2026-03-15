@@ -40,9 +40,7 @@ pub async fn run_cook(
     app: AppHandle,
 ) -> Result<(), String> {
     if monitor::has_blocking_processes("uproject".to_string())? {
-        return Err(
-            "Cannot cook: Unreal Engine is running. Close it first.".to_string(),
-        );
+        return Err("Cannot cook: Unreal Engine is running. Close it first.".to_string());
     }
 
     let uproj = Path::new(&project_path);
@@ -77,8 +75,19 @@ pub async fn run_cook(
         "-log".to_string(),
     ];
 
-    stream_processor::emit_log(&app, &format!("Running Cook for platform: {} (target: {})", platform, cook_platform), Some("blue"));
-    stream_processor::emit_log(&app, &format!("Command: {} {}", editor_cmd, args.join(" ")), None);
+    stream_processor::emit_log(
+        &app,
+        &format!(
+            "Running Cook for platform: {} (target: {})",
+            platform, cook_platform
+        ),
+        Some("blue"),
+    );
+    stream_processor::emit_log(
+        &app,
+        &format!("Command: {} {}", editor_cmd, args.join(" ")),
+        None,
+    );
 
     let result = tokio::task::spawn_blocking({
         let app = app.clone();
@@ -151,10 +160,7 @@ pub async fn run_resave_packages(
     let bin_dir = editor_exe.parent().ok_or("Invalid engine path")?;
     let cwd = bin_dir.to_str().ok_or("Invalid Binaries path")?.to_string();
 
-    let mut args = vec![
-        project_path.clone(),
-        "-run=ResavePackages".to_string(),
-    ];
+    let mut args = vec![project_path.clone(), "-run=ResavePackages".to_string()];
     if fixup_redirects {
         args.push("-fixupredirects".to_string());
     }
@@ -198,7 +204,11 @@ pub async fn run_resave_packages(
             let status = child.wait().map_err(|e| e.to_string())?;
             running_process::clear_running_pid();
             if status.success() {
-                stream_processor::emit_log(&app, "ResavePackages completed successfully!", Some("green"));
+                stream_processor::emit_log(
+                    &app,
+                    "ResavePackages completed successfully!",
+                    Some("green"),
+                );
                 Ok(())
             } else {
                 stream_processor::emit_log(
@@ -227,9 +237,7 @@ pub async fn run_package(
     app: AppHandle,
 ) -> Result<(), String> {
     if monitor::has_blocking_processes("uproject".to_string())? {
-        return Err(
-            "Cannot package: Unreal Engine is running. Close it first.".to_string(),
-        );
+        return Err("Cannot package: Unreal Engine is running. Close it first.".to_string());
     }
 
     let uproj = Path::new(&project_path);
@@ -331,9 +339,7 @@ pub async fn run_archive(
     app: AppHandle,
 ) -> Result<(), String> {
     if monitor::has_blocking_processes("uproject".to_string())? {
-        return Err(
-            "Cannot archive: Unreal Engine is running. Close it first.".to_string(),
-        );
+        return Err("Cannot archive: Unreal Engine is running. Close it first.".to_string());
     }
 
     let uproj = Path::new(&project_path);
@@ -428,9 +434,7 @@ pub async fn run_build(
     }
 
     if monitor::has_blocking_processes("uproject".to_string())? {
-        return Err(
-            "Cannot build: Unreal Engine is running. Close it first.".to_string(),
-        );
+        return Err("Cannot build: Unreal Engine is running. Close it first.".to_string());
     }
 
     let uproj = Path::new(&project_path);
@@ -473,7 +477,11 @@ pub async fn run_build(
         "-WaitMutex".to_string(),
     ];
 
-    stream_processor::emit_log(&app, "Building project (Development Editor)...", Some("blue"));
+    stream_processor::emit_log(
+        &app,
+        "Building project (Development Editor)...",
+        Some("blue"),
+    );
     stream_processor::emit_log(&app, &format!("Target: {}Editor", project_name), None);
 
     let result = tokio::task::spawn_blocking({

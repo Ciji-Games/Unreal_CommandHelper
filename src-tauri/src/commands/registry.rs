@@ -21,6 +21,16 @@ struct BuildVersion {
     patch_version: Option<u16>,
 }
 
+/// Resolve editor path to engine root (InstalledDirectory).
+/// UnrealEditor.exe is at Engine/Binaries/Win64/UnrealEditor.exe
+fn editor_path_to_engine_root(editor_path: &Path) -> Option<std::path::PathBuf> {
+    let mut p = editor_path.to_path_buf();
+    for _ in 0..4 {
+        p = p.parent()?.to_path_buf();
+    }
+    Some(p)
+}
+
 /// Read full engine version (e.g. 5.7.1) from Engine/Build/Build.version.
 /// Falls back to short_version if file is missing or unreadable.
 fn read_engine_version_from_build_file(installed_dir: &Path, short_version: &str) -> String {
@@ -128,6 +138,9 @@ pub fn get_installed_engine_paths() -> Result<Vec<EngineEntry>, String> {
                             engines.push(EngineEntry {
                                 version,
                                 editor_path: editor_path.to_string_lossy().to_string(),
+                                display_name: None,
+                                is_custom: false,
+                                id: None,
                             });
                         }
                     }
@@ -137,4 +150,38 @@ pub fn get_installed_engine_paths() -> Result<Vec<EngineEntry>, String> {
 
         Ok(engines)
     }
+}
+
+/// Validate that a path points to a valid Unreal Engine installation.
+/// Accepts either engine root (InstalledDirectory) or UnrealEditor.exe path.
+#[tauri::command]
+pub fn validate_engine_path(path: String) -> Result<bool, String> {
+    let p = Path::new(&path);
+    if !p.exists() {
+        return Ok(false);
+    }
+    let editor_path = if p.is_file() && p.file_name().map_or(false, |n| n == "UnrealEditor.exe") {
+        p.to_path_buf()
+    } else if p.is_dir() {
+        p.join("Engine")
+            .join("Binaries")
+            .join("Win64")
+            .join("UnrealEditor.exe")
+    } else {
+        return Ok(false);
+    };
+    Ok(editor_path.exists())
+}
+
+/// Read engine version from Build.version given UnrealEditor.exe path.
+#[tauri::command]
+pub fn read_engine_version_from_path(editor_path: String) -> Result<String, String> {
+    let path = Path::new(&editor_path);
+    if !path.exists() {
+        return Err("Path does not exist".to_string());
+    }
+    let engine_root = editor_path_to_engine_root(path)
+        .ok_or_else(|| "Invalid editor path: could not resolve engine root".to_string())?;
+    let version = read_engine_version_from_build_file(&engine_root, "Unknown");
+    Ok(version)
 }
