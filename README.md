@@ -2,14 +2,6 @@
 
 Unreal Engine project launcher and toolbox for Windows. Launch projects, run common workflows, and schedule batch jobs.
 
-## Screenshots
-
-| Launcher | Shader Booster |
-|----------|----------------|
-| ![Launcher](public/assets/launcher.png) | ![Shader Booster](public/assets/shaderbooster.png) |
-| Batch Job | Map Helper |
-| ![Batch Job](public/assets/batchJob.png) | ![Map Helper](public/assets/MapHelper.png) |
-
 ## Features
 
 | Feature | Description |
@@ -18,6 +10,20 @@ Unreal Engine project launcher and toolbox for Windows. Launch projects, run com
 | [**ToolBox**](docs/TOOLBOX.md) | Shader Booster, Regenerate Project, Batch Commit, UMap Helper, Plugin Helper, UProject Helper, Movie Render Queue |
 | [**Scheduler**](docs/SCHEDULER.md) | Create named batch jobs (sequences of tools) and run them in order |
 | [**Links**](docs/LINKS.md) | Quick links and resources |
+
+## Installation
+
+1. Go to the [Releases](https://github.com/Ciji-Games/Unreal_CommandHelper/releases) page
+2. Download the latest `.msi` installer (or `-setup.exe` if available)
+3. Run the installer
+
+## Screenshots
+
+| Launcher | Shader Booster |
+|----------|----------------|
+| ![Launcher](public/assets/launcher.png) | ![Shader Booster](public/assets/shaderbooster.png) |
+| Batch Job | Map Helper |
+| ![Batch Job](public/assets/batchJob.png) | ![Map Helper](public/assets/MapHelper.png) |
 
 ## Requirements
 
@@ -30,12 +36,6 @@ No other prerequisites. The app runs standalone on Windows 11 (WebView2 is pre-i
 > - **Unreal Engine** — Launcher, Regenerate, Cook, Package, Build Lighting, UMap, Plugin build
 > - **Git** — Batch Commit
 > - **Git LFS** — Batch Commit (large files)
-
-## Installation
-
-1. Go to the [Releases](https://github.com/Ciji-Games/Unreal_CommandHelper/releases) page
-2. Download the latest `.msi` installer (or `-setup.exe` if available)
-3. Run the installer
 
 ## Build from Source
 
@@ -52,7 +52,7 @@ Build output: `Build/release/bundle/msi/` (or `target/release/bundle/` depending
 
 ## License
 
-MIT
+Polyform Noncommercial 1.0.0 — use allowed for non-commercial purposes only. See [LICENSE](LICENSE) for details.
 
 ## Disclaimer
 
