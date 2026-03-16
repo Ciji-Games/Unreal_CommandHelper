@@ -16,7 +16,7 @@ import { useProcessMonitor } from '../hooks/useProcessMonitor';
 import { ToolGroup } from './ToolGroup';
 import { Select } from './Select';
 import type { ProjectInfo } from '../types';
-import { getProjectDisplayLabel } from '../utils/project';
+import { getProjectDisplayLabel, getShortEngineVersion } from '../utils/project';
 
 const UMAP_PROCESS_GROUP = 'umap';
 
@@ -39,6 +39,7 @@ export function UmapHelperPanel() {
 
   const selectedProject = projects.find((p) => p.projectPath === selectedProjectPath);
   const maps = selectedProject?.maps ?? [];
+  const isUE5 = !getShortEngineVersion(selectedProject?.engineVersion ?? '').startsWith('4.');
   const effectiveEnginePath =
     selectedProject && settings.projectEngineOverrides
       ? settings.projectEngineOverrides[selectedProject.projectPath] ?? selectedProject.engineInstallPath
@@ -225,132 +226,136 @@ export function UmapHelperPanel() {
         )}
 
         {/* World Partition section */}
-        <div className="rounded-lg border border-slate-600/60 bg-slate-700/30 p-4 space-y-3">
-          <h4 className="text-sm font-semibold text-slate-200">World Partition</h4>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleBuildHLOD}
-              disabled={!selectedMapPath || running || hasBlockingProcesses}
-              title="Runs WorldPartitionBuilderCommandlet with WorldPartitionHLODsBuilder. Generates Hierarchical LODs for the World Partition map."
-              className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
-            >
-              Build HLOD
-            </button>
-            <button
-              type="button"
-              onClick={handleBuildMiniMap}
-              disabled={!selectedMapPath || running || hasBlockingProcesses}
-              title="Runs WorldPartitionBuilderCommandlet with WorldPartitionMiniMapBuilder. Generates minimap texture for the World Partition map."
-              className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
-            >
-              Build MiniMap
-            </button>
-            <button
-              type="button"
-              onClick={handleDeleteHLOD}
-              disabled={!selectedMapPath || running || hasBlockingProcesses}
-              title="Runs WorldPartitionBuilderCommandlet with WorldPartitionHLODsBuilder -DeleteHLODs. Removes all HLOD assets from the map."
-              className="rounded-md px-4 py-2 bg-slate-600/80 hover:bg-slate-500/80 disabled:bg-slate-700 disabled:text-slate-500 text-white font-medium transition-colors"
-            >
-              Delete HLOD
-            </button>
-          </div>
-          <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
-            <input
-              type="checkbox"
-              checked={launchMapAfter}
-              onChange={(e) => setLaunchMapAfter(e.target.checked)}
-              className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
-            />
-            Launch map after completion
-          </label>
-        </div>
+        {isUE5 && (
+          <>
+            <div className="rounded-lg border border-slate-600/60 bg-slate-700/30 p-4 space-y-3">
+              <h4 className="text-sm font-semibold text-slate-200">World Partition</h4>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleBuildHLOD}
+                  disabled={!selectedMapPath || running || hasBlockingProcesses}
+                  title="Runs WorldPartitionBuilderCommandlet with WorldPartitionHLODsBuilder. Generates Hierarchical LODs for the World Partition map."
+                  className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
+                >
+                  Build HLOD
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBuildMiniMap}
+                  disabled={!selectedMapPath || running || hasBlockingProcesses}
+                  title="Runs WorldPartitionBuilderCommandlet with WorldPartitionMiniMapBuilder. Generates minimap texture for the World Partition map."
+                  className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
+                >
+                  Build MiniMap
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteHLOD}
+                  disabled={!selectedMapPath || running || hasBlockingProcesses}
+                  title="Runs WorldPartitionBuilderCommandlet with WorldPartitionHLODsBuilder -DeleteHLODs. Removes all HLOD assets from the map."
+                  className="rounded-md px-4 py-2 bg-slate-600/80 hover:bg-slate-500/80 disabled:bg-slate-700 disabled:text-slate-500 text-white font-medium transition-colors"
+                >
+                  Delete HLOD
+                </button>
+              </div>
+              <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={launchMapAfter}
+                  onChange={(e) => setLaunchMapAfter(e.target.checked)}
+                  className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
+                />
+                Launch map after completion
+              </label>
+            </div>
 
-        {/* World Partition Builders (Resave, Foliage, Nav, Rename/Duplicate) */}
-        <div className="rounded-lg border border-slate-600/60 bg-slate-700/30 p-4 space-y-3">
-          <h4 className="text-sm font-semibold text-slate-200">World Partition Builders</h4>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleResaveActors}
-              disabled={!selectedMapPath || running || hasBlockingProcesses}
-              title="Runs WorldPartitionBuilderCommandlet with WorldPartitionResaveActorsBuilder. Resaves all or filtered actors in the World Partition map."
-              className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
-            >
-              Resave Actors
-            </button>
-            <button
-              type="button"
-              onClick={handleFoliageBuilder}
-              disabled={!selectedMapPath || running || hasBlockingProcesses}
-              title="Runs WorldPartitionBuilderCommandlet with WorldPartitionFoliageBuilder. Adjusts instanced foliage grid size."
-              className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
-            >
-              Foliage Builder
-            </button>
-            <button
-              type="button"
-              onClick={handleNavigationData}
-              disabled={!selectedMapPath || running || hasBlockingProcesses}
-              title="Runs WorldPartitionBuilderCommandlet with WorldPartitionNavigationDataBuilder. Rebuilds navigation mesh data for the World Partition map."
-              className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
-            >
-              Navigation Data
-            </button>
-            <button
-              type="button"
-              onClick={handleRenameDuplicate}
-              disabled={!selectedMapPath || running || hasBlockingProcesses}
-              title="Runs WorldPartitionBuilderCommandlet with WorldPartitionRenameDuplicateBuilder. Duplicates or renames the World Partition level including all actors."
-              className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
-            >
-              Rename/Duplicate Map
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-4 items-center text-sm">
-            <div className="flex items-center gap-2">
-              <label className="text-slate-400">Resave Actors class:</label>
-              <input
-                type="text"
-                value={resaveActorClass}
-                onChange={(e) => setResaveActorClass(e.target.value)}
-                placeholder="e.g. StaticMeshActor"
-                className="w-40 rounded-md bg-slate-700/50 border border-slate-600 text-slate-100 px-2 py-1 text-sm"
-              />
+            {/* World Partition Builders (Resave, Foliage, Nav, Rename/Duplicate) */}
+            <div className="rounded-lg border border-slate-600/60 bg-slate-700/30 p-4 space-y-3">
+              <h4 className="text-sm font-semibold text-slate-200">World Partition Builders</h4>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleResaveActors}
+                  disabled={!selectedMapPath || running || hasBlockingProcesses}
+                  title="Runs WorldPartitionBuilderCommandlet with WorldPartitionResaveActorsBuilder. Resaves all or filtered actors in the World Partition map."
+                  className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
+                >
+                  Resave Actors
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFoliageBuilder}
+                  disabled={!selectedMapPath || running || hasBlockingProcesses}
+                  title="Runs WorldPartitionBuilderCommandlet with WorldPartitionFoliageBuilder. Adjusts instanced foliage grid size."
+                  className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
+                >
+                  Foliage Builder
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNavigationData}
+                  disabled={!selectedMapPath || running || hasBlockingProcesses}
+                  title="Runs WorldPartitionBuilderCommandlet with WorldPartitionNavigationDataBuilder. Rebuilds navigation mesh data for the World Partition map."
+                  className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
+                >
+                  Navigation Data
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRenameDuplicate}
+                  disabled={!selectedMapPath || running || hasBlockingProcesses}
+                  title="Runs WorldPartitionBuilderCommandlet with WorldPartitionRenameDuplicateBuilder. Duplicates or renames the World Partition level including all actors."
+                  className="rounded-md px-4 py-2 bg-sky-600/80 hover:bg-sky-500/80 disabled:bg-slate-600 disabled:text-slate-500 text-white font-medium transition-colors"
+                >
+                  Rename/Duplicate Map
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-4 items-center text-sm">
+                <div className="flex items-center gap-2">
+                  <label className="text-slate-400">Resave Actors class:</label>
+                  <input
+                    type="text"
+                    value={resaveActorClass}
+                    onChange={(e) => setResaveActorClass(e.target.value)}
+                    placeholder="e.g. StaticMeshActor"
+                    className="w-40 rounded-md bg-slate-700/50 border border-slate-600 text-slate-100 px-2 py-1 text-sm"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-slate-400">Foliage grid size:</label>
+                  <input
+                    type="number"
+                    value={foliageGridSize}
+                    onChange={(e) => setFoliageGridSize(parseInt(e.target.value, 10) || 512)}
+                    min={64}
+                    max={4096}
+                    className="w-20 rounded-md bg-slate-700/50 border border-slate-600 text-slate-100 px-2 py-1 text-sm"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-slate-400">Rename/Duplicate NewPackage:</label>
+                  <input
+                    type="text"
+                    value={renameDuplicateNewPackage}
+                    onChange={(e) => setRenameDuplicateNewPackage(e.target.value)}
+                    placeholder="/Game/Maps/NewPackage"
+                    className="w-48 rounded-md bg-slate-700/50 border border-slate-600 text-slate-100 px-2 py-1 text-sm"
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={renameDuplicateRename}
+                    onChange={(e) => setRenameDuplicateRename(e.target.checked)}
+                    className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
+                  />
+                  Rename (instead of duplicate)
+                </label>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <label className="text-slate-400">Foliage grid size:</label>
-              <input
-                type="number"
-                value={foliageGridSize}
-                onChange={(e) => setFoliageGridSize(parseInt(e.target.value, 10) || 512)}
-                min={64}
-                max={4096}
-                className="w-20 rounded-md bg-slate-700/50 border border-slate-600 text-slate-100 px-2 py-1 text-sm"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-slate-400">Rename/Duplicate NewPackage:</label>
-              <input
-                type="text"
-                value={renameDuplicateNewPackage}
-                onChange={(e) => setRenameDuplicateNewPackage(e.target.value)}
-                placeholder="/Game/Maps/NewPackage"
-                className="w-48 rounded-md bg-slate-700/50 border border-slate-600 text-slate-100 px-2 py-1 text-sm"
-              />
-            </div>
-            <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={renameDuplicateRename}
-                onChange={(e) => setRenameDuplicateRename(e.target.checked)}
-                className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
-              />
-              Rename (instead of duplicate)
-            </label>
-          </div>
-        </div>
+          </>
+        )}
 
         {/* Static Lighting section */}
         <div className="rounded-lg border border-slate-600/60 bg-slate-700/30 p-4 space-y-3">

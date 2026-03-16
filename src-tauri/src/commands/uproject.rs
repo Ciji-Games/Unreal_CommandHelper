@@ -6,6 +6,7 @@ use std::path::Path;
 use tauri::AppHandle;
 
 use crate::commands::monitor;
+use crate::commands::registry;
 use crate::progress_parser::ToolMode;
 use crate::running_process;
 use crate::stream_processor::{self, process_streams};
@@ -50,21 +51,20 @@ pub async fn run_cook(
 
     let editor_exe = Path::new(&engine_path);
     if !editor_exe.exists() {
-        stream_processor::emit_log(&app, "[ERROR] UnrealEditor.exe not found.", Some("red"));
+        stream_processor::emit_log(&app, "[ERROR] Editor executable not found.", Some("red"));
         return Err("Engine path not found".to_string());
     }
 
-    // UnrealEditor-Cmd.exe is in same folder as UnrealEditor.exe
-    let bin_dir = editor_exe.parent().ok_or("Invalid engine path")?;
-    let editor_cmd = bin_dir
-        .join("UnrealEditor-Cmd.exe")
+    let editor_cmd = registry::get_editor_cmd_path(editor_exe)
+        .ok_or("Invalid engine path")?
         .to_string_lossy()
         .to_string();
     if !Path::new(&editor_cmd).exists() {
-        return Err("UnrealEditor-Cmd.exe not found".to_string());
+        return Err("Editor command-line executable not found (UnrealEditor-Cmd.exe or UE4Editor-Cmd.exe)".to_string());
     }
 
     let cook_platform = platform_for_cook(&platform);
+    let bin_dir = editor_exe.parent().ok_or("Invalid engine path")?;
     let cwd = bin_dir.to_str().ok_or("Invalid Binaries path")?.to_string();
     let args = vec![
         project_path.clone(),
@@ -153,7 +153,7 @@ pub async fn run_resave_packages(
 
     let editor_exe = Path::new(&engine_path);
     if !editor_exe.exists() {
-        stream_processor::emit_log(&app, "[ERROR] UnrealEditor.exe not found.", Some("red"));
+        stream_processor::emit_log(&app, "[ERROR] Editor executable not found.", Some("red"));
         return Err("Engine path not found".to_string());
     }
 
