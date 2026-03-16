@@ -17,12 +17,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: setup node
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: 'npm'
+
+      - name: bump version
+        shell: bash
+        env:
+          BUMP_FROM_TAG: '1'
+        run: node scripts/bump-version.cjs
 
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
