@@ -12,8 +12,34 @@ use crate::running_process;
 use crate::stream_processor::{self, process_streams};
 use crate::utils::build_cmd;
 
+/// Resolve engine root from editor path (UnrealEditor.exe or UE4Editor.exe at Engine/Binaries/Win64/).
+fn editor_path_to_engine_root(editor_path: &Path) -> Option<std::path::PathBuf> {
+    let mut p = editor_path.to_path_buf();
+    for _ in 0..4 {
+        p = p.parent()?.to_path_buf();
+    }
+    Some(p)
+}
+
+/// Find UnrealBuildTool.exe. UE4: Engine/Binaries/DotNET/UnrealBuildTool.exe
+/// UE5: Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.exe
+fn find_unreal_build_tool(engine_root: &Path) -> Option<std::path::PathBuf> {
+    let dotnet = engine_root.join("Engine").join("Binaries").join("DotNET");
+    let ue4_path = dotnet.join("UnrealBuildTool.exe");
+    if ue4_path.exists() {
+        return Some(ue4_path);
+    }
+    let ue5_path = dotnet.join("UnrealBuildTool").join("UnrealBuildTool.exe");
+    if ue5_path.exists() {
+        return Some(ue5_path);
+    }
+    None
+}
+
 /// Regenerate project files: delete Intermediate, DerivedDataCache, Build, .vs, Binaries,
-/// .sln, .vsconfig; then run UnrealVersionSelector -projectfiles.
+/// .sln, .vsconfig; then generate project files.
+/// Prefers UnrealBuildTool.exe directly (correct path for UE4: DotNET/UnrealBuildTool.exe)
+/// when engine path is available; falls back to UnrealVersionSelector -projectfiles.
 /// Optionally build the project (Development Editor) so VS and UE recognize it as compiled.
 #[tauri::command]
 pub async fn regenerate_project(
@@ -40,13 +66,20 @@ pub async fn regenerate_project(
         .unwrap_or("Unknown")
         .to_string();
 
-    if !Path::new(&version_selector_path).exists() {
+    // Prefer UnrealBuildTool.exe directly when we have engine path (UE4 uses
+    // DotNET/UnrealBuildTool.exe; UnrealVersionSelector may use wrong path)
+    let ubt_path = (!engine_install_path.is_empty() && Path::new(&engine_install_path).exists())
+        .then(|| editor_path_to_engine_root(Path::new(&engine_install_path)))
+        .flatten()
+        .and_then(|root| find_unreal_build_tool(&root));
+
+    if ubt_path.is_none() && !Path::new(&version_selector_path).exists() {
         stream_processor::emit_log(
             &app,
-            "[ERROR] UnrealVersionSelector.exe not found.",
+            "[ERROR] UnrealVersionSelector.exe not found. Set engine path or UnrealVersionSelector in settings.",
             Some("red"),
         );
-        return Err("UnrealVersionSelector.exe not found".to_string());
+        return Err("UnrealVersionSelector.exe not found. Set engine path for the project or UnrealVersionSelector path in settings.".to_string());
     }
 
     if monitor::has_blocking_processes("regenerate".to_string())? {
@@ -55,12 +88,15 @@ pub async fn regenerate_project(
         );
     }
 
+    let ubt_path = ubt_path.map(|p| p.to_string_lossy().to_string());
+
     let result = tokio::task::spawn_blocking({
         let app = app.clone();
         let uproject_path = uproject_path.clone();
         let version_selector_path = version_selector_path.clone();
         let project_dir = project_dir.clone();
         let project_name = project_name.clone();
+        let ubt_path = ubt_path.clone();
         move || -> Result<(), String> {
             // 1. Delete folders
             let folders = [
@@ -115,11 +151,49 @@ pub async fn regenerate_project(
             let start = Instant::now();
             stream_processor::emit_progress(&app, 10, start.elapsed().as_millis() as u64);
 
-            // 3. Run UnrealVersionSelector -projectfiles
+            // 3. Generate project files: prefer UnrealBuildTool directly (correct UE4 path:
+            //    DotNET/UnrealBuildTool.exe); fall back to UnrealVersionSelector
             stream_processor::emit_log(&app, "Generating project files...", Some("blue"));
-            let args = vec!["-projectfiles".to_string(), uproject_path.clone()];
-            let cwd = project_dir.to_str().filter(|s| !s.is_empty());
-            let mut cmd = build_cmd(&version_selector_path, &args, cwd);
+            let (cmd_path, cmd_args, cmd_cwd) = if let Some(ref ubt) = ubt_path {
+                // Engine root from UBT path: .../Engine/Binaries/DotNET/UnrealBuildTool.exe -> 4 levels up
+                let engine_root = Path::new(ubt)
+                    .parent()
+                    .and_then(|p| p.parent())
+                    .and_then(|p| p.parent())
+                    .and_then(|p| p.parent());
+                let cwd = engine_root
+                    .map(|r| r.join("Engine").join("Source"))
+                    .filter(|p| p.exists())
+                    .and_then(|p| p.to_str().map(String::from));
+                stream_processor::emit_log(
+                    &app,
+                    "Using UnrealBuildTool.exe directly (engine path)",
+                    Some("gray"),
+                );
+                (
+                    ubt.clone(),
+                    vec![
+                        "-ProjectFiles".to_string(),
+                        format!("-project={}", uproject_path),
+                        "-game".to_string(),
+                    ],
+                    cwd.or_else(|| project_dir.to_str().map(String::from)),
+                )
+            } else {
+                stream_processor::emit_log(
+                    &app,
+                    "Using UnrealVersionSelector -projectfiles",
+                    Some("gray"),
+                );
+                (
+                    version_selector_path.clone(),
+                    vec!["-projectfiles".to_string(), uproject_path.clone()],
+                    project_dir.to_str().filter(|s| !s.is_empty()).map(String::from),
+                )
+            };
+
+            let cwd = cmd_cwd.as_deref();
+            let mut cmd = build_cmd(&cmd_path, &cmd_args, cwd);
             cmd.stdout(std::process::Stdio::piped());
             cmd.stderr(std::process::Stdio::piped());
 
