@@ -48,11 +48,21 @@ pub fn analyse_uproject(path: String) -> Result<ProjectInfo, String> {
     let is_cpp = source_dir.exists();
 
     // Match engine path from registry (project may have "5.7", engine "5.7.1")
+    // Require version boundary to avoid "4" matching "41.0.0"
     let engine_install_path = registry::get_installed_engine_paths()
         .ok()
         .unwrap_or_default()
         .into_iter()
-        .find(|e| e.version == engine_version || e.version.starts_with(&engine_version))
+        .find(|e| {
+            if engine_version.is_empty() || engine_version == "Unknown" {
+                return false;
+            }
+            e.version == engine_version
+                || (engine_version.len() <= e.version.len()
+                    && e.version.starts_with(&engine_version)
+                    && (e.version.len() == engine_version.len()
+                        || e.version.as_bytes().get(engine_version.len()) == Some(&b'.')))
+        })
         .map(|e| e.editor_path)
         .unwrap_or_else(|| "Unknown".to_string());
 

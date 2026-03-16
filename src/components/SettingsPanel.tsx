@@ -66,7 +66,7 @@ export function SettingsPanel({ open: isOpen, onClose }: SettingsPanelProps) {
     const path = await open({
       multiple: false,
       directory: false,
-      filters: [{ name: 'UnrealEditor', extensions: ['exe'] }],
+      filters: [{ name: 'Unreal Editor (UnrealEditor.exe or UE4Editor.exe)', extensions: ['exe'] }],
     });
     if (path && typeof path === 'string') {
       setAddEnginePath(path);

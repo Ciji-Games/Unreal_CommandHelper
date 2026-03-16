@@ -23,7 +23,7 @@ pub struct ProcessStatus {
 pub struct ProcessDefinition {
     pub id: &'static str,
     pub display_name: &'static str,
-    /// Substrings to match in process name (e.g. "UnrealEditor" matches UnrealEditor.exe)
+    /// Substrings to match in process name (e.g. "UnrealEditor" matches UnrealEditor.exe, "UE4Editor" matches UE4Editor.exe)
     pub patterns: &'static [&'static str],
 }
 
@@ -37,7 +37,7 @@ pub mod process_groups {
         ProcessDefinition {
             id: "unreal_engine",
             display_name: "Unreal Engine",
-            patterns: &["UnrealEditor"],
+            patterns: &["UnrealEditor", "UE4Editor"],
         },
         ProcessDefinition {
             id: "rider",
@@ -55,14 +55,14 @@ pub mod process_groups {
     pub const UMAP_BLOCKING: &[ProcessDefinition] = &[ProcessDefinition {
         id: "unreal_engine",
         display_name: "Unreal Engine",
-        patterns: &["UnrealEditor"],
+        patterns: &["UnrealEditor", "UE4Editor"],
     }];
 
     /// Processes that block Cook/Package/Build (Unreal must be closed)
     pub const UPROJECT_BLOCKING: &[ProcessDefinition] = &[ProcessDefinition {
         id: "unreal_engine",
         display_name: "Unreal Engine",
-        patterns: &["UnrealEditor"],
+        patterns: &["UnrealEditor", "UE4Editor"],
     }];
 
     /// All known process groups - extend when adding new features

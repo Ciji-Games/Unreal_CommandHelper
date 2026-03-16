@@ -7,6 +7,7 @@ use std::path::Path;
 use tauri::AppHandle;
 
 use crate::commands::monitor;
+use crate::commands::registry;
 use crate::progress_parser::ToolMode;
 use crate::running_process;
 use crate::stream_processor::{self, process_streams};
@@ -34,8 +35,14 @@ pub async fn run_map_command(
 
     let engine_exe = Path::new(&engine_path);
     if !engine_exe.exists() {
-        stream_processor::emit_log(&app, "[ERROR] UnrealEditor.exe not found.", Some("red"));
+        stream_processor::emit_log(&app, "[ERROR] Editor executable not found.", Some("red"));
         return Err("Engine path not found".to_string());
+    }
+
+    // World Partition is UE5 only
+    let version = registry::read_engine_version_from_path(engine_path.clone()).unwrap_or_default();
+    if version.starts_with("4.") {
+        return Err("World Partition builders are not available in UE4. Use UE5 for World Partition features.".to_string());
     }
 
     let cwd: String = engine_exe
@@ -161,7 +168,7 @@ pub async fn run_build_lighting(
 
     let engine_exe = Path::new(&engine_path);
     if !engine_exe.exists() {
-        stream_processor::emit_log(&app, "[ERROR] UnrealEditor.exe not found.", Some("red"));
+        stream_processor::emit_log(&app, "[ERROR] Editor executable not found.", Some("red"));
         return Err("Engine path not found".to_string());
     }
 

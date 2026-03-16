@@ -21,14 +21,31 @@ struct BuildVersion {
     patch_version: Option<u16>,
 }
 
+/// Valid editor executable names (UE5: UnrealEditor.exe, UE4: UE4Editor.exe)
+const UE5_EDITOR_EXE: &str = "UnrealEditor.exe";
+const UE4_EDITOR_EXE: &str = "UE4Editor.exe";
+
 /// Resolve editor path to engine root (InstalledDirectory).
-/// UnrealEditor.exe is at Engine/Binaries/Win64/UnrealEditor.exe
+/// UnrealEditor.exe / UE4Editor.exe is at Engine/Binaries/Win64/
 fn editor_path_to_engine_root(editor_path: &Path) -> Option<std::path::PathBuf> {
     let mut p = editor_path.to_path_buf();
     for _ in 0..4 {
         p = p.parent()?.to_path_buf();
     }
     Some(p)
+}
+
+/// Resolve the command-line editor exe from the editor path.
+/// UE4: UE4Editor.exe -> UE4Editor-Cmd.exe; UE5: UnrealEditor.exe -> UnrealEditor-Cmd.exe
+pub fn get_editor_cmd_path(editor_path: &Path) -> Option<std::path::PathBuf> {
+    let bin_dir = editor_path.parent()?;
+    let name = editor_path.file_name()?.to_str()?;
+    let cmd_name = if name.eq_ignore_ascii_case(UE4_EDITOR_EXE) {
+        "UE4Editor-Cmd.exe"
+    } else {
+        "UnrealEditor-Cmd.exe"
+    };
+    Some(bin_dir.join(cmd_name))
 }
 
 /// Read full engine version (e.g. 5.7.1) from Engine/Build/Build.version.
@@ -99,8 +116,8 @@ pub fn get_unreal_version_selector_path() -> Result<Option<String>, String> {
 
 /// Get installed Unreal Engine paths from registry.
 /// Registry: HKLM\SOFTWARE\EpicGames\Unreal Engine\{Version}
-/// Each subkey has InstalledDirectory → e.g. C:\Program Files\Epic Games\UE_5.4
-/// Editor exe: {InstalledDirectory}\Engine\Binaries\Win64\UnrealEditor.exe
+/// Each subkey has InstalledDirectory → e.g. C:\Program Files\Epic Games\UE_5.4 or UE_4.27
+/// Editor exe: UnrealEditor.exe (UE5) or UE4Editor.exe (UE4)
 #[tauri::command]
 pub fn get_installed_engine_paths() -> Result<Vec<EngineEntry>, String> {
     #[cfg(not(windows))]
@@ -120,16 +137,20 @@ pub fn get_installed_engine_paths() -> Result<Vec<EngineEntry>, String> {
         };
 
         let mut engines = Vec::new();
+        let bin64 = ["Engine", "Binaries", "Win64"];
         for subkey_name in base_key.enum_keys().filter_map(Result::ok) {
             if let Ok(sub_key) = base_key.open_subkey(&subkey_name) {
                 if let Ok(installed_dir) = sub_key.get_value::<String, _>("InstalledDirectory") {
                     let installed_dir = installed_dir.trim();
                     if !installed_dir.is_empty() && std::path::Path::new(installed_dir).exists() {
-                        let editor_path = std::path::Path::new(installed_dir)
-                            .join("Engine")
-                            .join("Binaries")
-                            .join("Win64")
-                            .join("UnrealEditor.exe");
+                        let base = std::path::Path::new(installed_dir).join(bin64[0]).join(bin64[1]).join(bin64[2]);
+                        // Prefer UE5 (UnrealEditor.exe), then UE4 (UE4Editor.exe)
+                        let editor_path = base.join(UE5_EDITOR_EXE);
+                        let editor_path = if editor_path.exists() {
+                            editor_path
+                        } else {
+                            base.join(UE4_EDITOR_EXE)
+                        };
                         if editor_path.exists() {
                             let version = read_engine_version_from_build_file(
                                 std::path::Path::new(installed_dir),
@@ -153,20 +174,31 @@ pub fn get_installed_engine_paths() -> Result<Vec<EngineEntry>, String> {
 }
 
 /// Validate that a path points to a valid Unreal Engine installation.
-/// Accepts either engine root (InstalledDirectory) or UnrealEditor.exe path.
+/// Accepts either engine root (InstalledDirectory) or editor exe path (UnrealEditor.exe / UE4Editor.exe).
 #[tauri::command]
 pub fn validate_engine_path(path: String) -> Result<bool, String> {
     let p = Path::new(&path);
     if !p.exists() {
         return Ok(false);
     }
-    let editor_path = if p.is_file() && p.file_name().map_or(false, |n| n == "UnrealEditor.exe") {
-        p.to_path_buf()
+    let editor_path = if p.is_file() {
+        let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if name.eq_ignore_ascii_case(UE5_EDITOR_EXE) || name.eq_ignore_ascii_case(UE4_EDITOR_EXE) {
+            p.to_path_buf()
+        } else {
+            return Ok(false);
+        }
     } else if p.is_dir() {
-        p.join("Engine")
-            .join("Binaries")
-            .join("Win64")
-            .join("UnrealEditor.exe")
+        let bin64 = p.join("Engine").join("Binaries").join("Win64");
+        let ue5 = bin64.join(UE5_EDITOR_EXE);
+        let ue4 = bin64.join(UE4_EDITOR_EXE);
+        if ue5.exists() {
+            ue5
+        } else if ue4.exists() {
+            ue4
+        } else {
+            return Ok(false);
+        }
     } else {
         return Ok(false);
     };
