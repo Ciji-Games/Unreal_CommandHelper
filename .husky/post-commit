@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Only create and push tag when committing on release branch
+if [ "$(git branch --show-current)" = "release" ]; then
+  VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+  TAG="app-v${VERSION}"
+  git tag "$TAG"
+  git push origin "$TAG"
+fi

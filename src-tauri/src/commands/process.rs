@@ -32,7 +32,9 @@ pub fn launch_project_with_map(
     #[cfg(windows)]
     {
         if engine_path == "Unknown" || !std::path::Path::new(&engine_path).exists() {
-            return Err("Engine path not found. Ensure the project uses an installed engine.".to_string());
+            return Err(
+                "Engine path not found. Ensure the project uses an installed engine.".to_string(),
+            );
         }
         // start "" "exe" "arg1" "arg2" - empty title, then exe and args
         std::process::Command::new("cmd")
@@ -70,11 +72,7 @@ pub fn open_file(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn run_command(
-    command: String,
-    args: Vec<String>,
-    cwd: Option<String>,
-) -> Result<(), String> {
+pub fn run_command(command: String, args: Vec<String>, cwd: Option<String>) -> Result<(), String> {
     let cwd_ref = cwd.as_deref();
     let mut cmd = build_cmd(&command, &args, cwd_ref);
     cmd.spawn().map_err(|e| e.to_string())?;

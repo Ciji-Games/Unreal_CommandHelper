@@ -5,8 +5,8 @@ use serde::Serialize;
 use sysinfo::System;
 use windows::Win32::Foundation::CloseHandle;
 use windows::Win32::System::Threading::{
-    GetPriorityClass, OpenProcess, SetPriorityClass, BELOW_NORMAL_PRIORITY_CLASS,
-    NORMAL_PRIORITY_CLASS, ABOVE_NORMAL_PRIORITY_CLASS, HIGH_PRIORITY_CLASS,
+    GetPriorityClass, OpenProcess, SetPriorityClass, ABOVE_NORMAL_PRIORITY_CLASS,
+    BELOW_NORMAL_PRIORITY_CLASS, HIGH_PRIORITY_CLASS, NORMAL_PRIORITY_CLASS,
     PROCESS_QUERY_INFORMATION, PROCESS_SET_INFORMATION,
 };
 
@@ -39,7 +39,9 @@ fn get_shader_worker_pids() -> Vec<u32> {
     let mut pids = Vec::new();
     for (pid, process) in sys.processes() {
         let name = process.name().to_string_lossy();
-        if name.eq_ignore_ascii_case(PROCESS_NAME) || name.eq_ignore_ascii_case(&format!("{}.exe", PROCESS_NAME)) {
+        if name.eq_ignore_ascii_case(PROCESS_NAME)
+            || name.eq_ignore_ascii_case(&format!("{}.exe", PROCESS_NAME))
+        {
             pids.push(pid.as_u32());
         }
     }
@@ -116,8 +118,11 @@ fn set_shader_worker_priority_by_index(index: u32) -> Result<(), String> {
             for pid in pids {
                 let handle = OpenProcess(PROCESS_SET_INFORMATION, false, pid)
                     .map_err(|e| format!("OpenProcess failed: {}", e))?;
-                SetPriorityClass(handle, windows::Win32::System::Threading::PROCESS_CREATION_FLAGS(priority_class))
-                    .map_err(|e| format!("SetPriorityClass failed: {}", e))?;
+                SetPriorityClass(
+                    handle,
+                    windows::Win32::System::Threading::PROCESS_CREATION_FLAGS(priority_class),
+                )
+                .map_err(|e| format!("SetPriorityClass failed: {}", e))?;
                 let _ = CloseHandle(handle);
             }
         }

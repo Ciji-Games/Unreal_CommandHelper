@@ -40,15 +40,13 @@ fn find_git_root(project_dir: &Path) -> Result<PathBuf, String> {
 fn run_git(git_root: &Path, args: &[&str]) -> Result<String, String> {
     let args_str: Vec<String> = args.iter().map(|s| (*s).to_string()).collect();
     let mut cmd = build_cmd("git", &args_str, Some(git_root.to_str().unwrap_or("")));
-    cmd.output()
-        .map_err(|e| e.to_string())
-        .and_then(|o| {
-            if o.status.success() {
-                Ok(String::from_utf8_lossy(&o.stdout).to_string())
-            } else {
-                Err(String::from_utf8_lossy(&o.stderr).to_string())
-            }
-        })
+    cmd.output().map_err(|e| e.to_string()).and_then(|o| {
+        if o.status.success() {
+            Ok(String::from_utf8_lossy(&o.stdout).to_string())
+        } else {
+            Err(String::from_utf8_lossy(&o.stderr).to_string())
+        }
+    })
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -114,7 +112,10 @@ fn path_in_lfs(path: &str, lfs_patterns: &std::collections::HashSet<String>) -> 
 /// Scan uncommitted files and return grouped result for preview.
 /// `target_size_bytes`: best-effort target size per commit group (100MB–1.8GB).
 #[tauri::command]
-pub fn scan_batch_commit(project_path: String, target_size_bytes: Option<u64>) -> Result<ScanResult, String> {
+pub fn scan_batch_commit(
+    project_path: String,
+    target_size_bytes: Option<u64>,
+) -> Result<ScanResult, String> {
     let project_dir = resolve_project_dir(&project_path);
     let git_root = find_git_root(&project_dir)?;
 
@@ -141,7 +142,9 @@ pub fn scan_batch_commit(project_path: String, target_size_bytes: Option<u64>) -
         if !full_path.exists() || full_path.is_dir() {
             continue;
         }
-        let size = std::fs::metadata(&full_path).map_err(|e| e.to_string())?.len();
+        let size = std::fs::metadata(&full_path)
+            .map_err(|e| e.to_string())?
+            .len();
         if size >= MIN_FILE_SIZE {
             large_files.push(LargeFileEntry {
                 path: rel_path.clone(),
@@ -187,8 +190,8 @@ pub fn scan_batch_commit(project_path: String, target_size_bytes: Option<u64>) -
 
     // Group commitable files by target size (best-effort near target)
     let target = target_size_bytes.unwrap_or(DEFAULT_TARGET_SIZE).clamp(
-        100 * 1024 * 1024,      // 100 MB min
-        1800 * 1024 * 1024,     // 1.8 GB max
+        100 * 1024 * 1024,  // 100 MB min
+        1800 * 1024 * 1024, // 1.8 GB max
     );
     let mut grouped_commits: Vec<Vec<FileEntry>> = Vec::new();
     let mut current_group: Vec<FileEntry> = Vec::new();
@@ -228,11 +231,7 @@ pub fn add_to_lfs(project_path: String, paths: Vec<String>) -> Result<u32, Strin
         std::fs::read_to_string(&attr_path)
             .map_err(|e| e.to_string())?
             .lines()
-            .filter_map(|line| {
-                line.split_whitespace().next().map(|s| {
-                    s.replace('\\', "/")
-                })
-            })
+            .filter_map(|line| line.split_whitespace().next().map(|s| s.replace('\\', "/")))
             .collect()
     } else {
         std::collections::HashSet::new()
@@ -277,10 +276,8 @@ pub fn remove_from_lfs(project_path: String, paths: Vec<String>) -> Result<u32, 
         return Ok(0);
     }
 
-    let to_remove: std::collections::HashSet<String> = paths
-        .iter()
-        .map(|p| p.replace('\\', "/"))
-        .collect();
+    let to_remove: std::collections::HashSet<String> =
+        paths.iter().map(|p| p.replace('\\', "/")).collect();
 
     let content = std::fs::read_to_string(&attr_path).map_err(|e| e.to_string())?;
     let mut removed = 0u32;
@@ -334,7 +331,8 @@ fn run_batch_commit_impl(
 
     // Total steps: LFS (if any) + each commit group
     let has_lfs = !lfs_paths.is_empty();
-    let total_steps = (if has_lfs { 1 } else { 0 }) + groups.iter().filter(|g| !g.is_empty()).count();
+    let total_steps =
+        (if has_lfs { 1 } else { 0 }) + groups.iter().filter(|g| !g.is_empty()).count();
     let mut completed_steps = 0u32;
 
     // 1. Add to LFS first if any large files selected
@@ -369,7 +367,11 @@ fn run_batch_commit_impl(
             continue;
         }
         let msg = format!("{}_{}", commit_name, idx + 1);
-        stream_processor::emit_log(app, &format!("Committing group {}...", idx + 1), Some("blue"));
+        stream_processor::emit_log(
+            app,
+            &format!("Committing group {}...", idx + 1),
+            Some("blue"),
+        );
 
         // Include .gitattributes in the first group that contains LFS files so they are properly flagged
         let group_has_lfs = group.iter().any(|p| lfs_set.contains(p.as_str()));
@@ -381,7 +383,11 @@ fn run_batch_commit_impl(
                 let out = cmd.output().map_err(|e| e.to_string())?;
                 if !out.status.success() {
                     let err = String::from_utf8_lossy(&out.stderr);
-                    stream_processor::emit_log(app, &format!("[ERROR] git add .gitattributes: {}", err), Some("red"));
+                    stream_processor::emit_log(
+                        app,
+                        &format!("[ERROR] git add .gitattributes: {}", err),
+                        Some("red"),
+                    );
                 } else {
                     gitattributes_committed = true;
                 }
@@ -401,7 +407,11 @@ fn run_batch_commit_impl(
                 let out = cmd.output().map_err(|e| e.to_string())?;
                 if !out.status.success() {
                     let err = String::from_utf8_lossy(&out.stderr);
-                    stream_processor::emit_log(app, &format!("[ERROR] git add (batch): {}", err), Some("red"));
+                    stream_processor::emit_log(
+                        app,
+                        &format!("[ERROR] git add (batch): {}", err),
+                        Some("red"),
+                    );
                 }
                 batch = Vec::new();
                 batch_len = 0;
@@ -417,7 +427,11 @@ fn run_batch_commit_impl(
             let out = cmd.output().map_err(|e| e.to_string())?;
             if !out.status.success() {
                 let err = String::from_utf8_lossy(&out.stderr);
-                stream_processor::emit_log(app, &format!("[ERROR] git add (batch): {}", err), Some("red"));
+                stream_processor::emit_log(
+                    app,
+                    &format!("[ERROR] git add (batch): {}", err),
+                    Some("red"),
+                );
             }
         }
 
@@ -429,7 +443,11 @@ fn run_batch_commit_impl(
         } else {
             let err = String::from_utf8_lossy(&out.stderr);
             if err.contains("nothing to commit") {
-                stream_processor::emit_log(app, &format!("Nothing to commit for group {} (already staged?)", idx + 1), Some("orange"));
+                stream_processor::emit_log(
+                    app,
+                    &format!("Nothing to commit for group {} (already staged?)", idx + 1),
+                    Some("orange"),
+                );
             } else {
                 return Err(format!("git commit failed: {}", err));
             }

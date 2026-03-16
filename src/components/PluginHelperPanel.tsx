@@ -14,7 +14,7 @@ import { useProcessMonitor } from '../hooks/useProcessMonitor';
 import { ToolGroup } from './ToolGroup';
 import { Select } from './Select';
 import type { ProjectInfo } from '../types';
-import { getProjectDisplayLabel } from '../utils/project';
+import { getProjectDisplayLabel, getEngineSelectOptions } from '../utils/project';
 
 const PLUGIN_PROCESS_GROUP = 'umap';
 
@@ -34,7 +34,7 @@ export function PluginHelperPanel() {
   const [selectedProjectPath, setSelectedProjectPath] = useState<string>('');
   const [selectedPlugin, setSelectedPlugin] = useState<PluginInfo | null>(null);
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
-  const [selectedEngineVersion, setSelectedEngineVersion] = useState<string>('');
+  const [selectedEnginePath, setSelectedEnginePath] = useState<string>('');
   const [createZip, setCreateZip] = useState(true);
   const [running, setRunning] = useState(false);
 
@@ -43,18 +43,18 @@ export function PluginHelperPanel() {
 
   // Clear selected engine if it's no longer in the validated list
   useEffect(() => {
-    if (engines.length > 0 && !selectedEngineVersion) {
-      setSelectedEngineVersion(engines[0].version);
+    if (engines.length > 0 && !selectedEnginePath) {
+      setSelectedEnginePath(engines[0].editorPath);
     } else if (
-      selectedEngineVersion &&
+      selectedEnginePath &&
       engines.length > 0 &&
-      !engines.some((e) => e.version === selectedEngineVersion)
+      !engines.some((e) => e.editorPath === selectedEnginePath)
     ) {
-      setSelectedEngineVersion(engines[0].version);
-    } else if (selectedEngineVersion && engines.length === 0) {
-      setSelectedEngineVersion('');
+      setSelectedEnginePath(engines[0].editorPath);
+    } else if (selectedEnginePath && engines.length === 0) {
+      setSelectedEnginePath('');
     }
-  }, [engines, selectedEngineVersion]);
+  }, [engines, selectedEnginePath]);
 
   const loadPluginsForProject = useCallback(async (projectPath: string) => {
     if (!projectPath) {
@@ -130,8 +130,8 @@ export function PluginHelperPanel() {
   };
 
   const handleBuild = async () => {
-    if (!selectedPlugin || !selectedEngineVersion) {
-      alert('Please select a plugin and engine version.');
+    if (!selectedPlugin || !selectedEnginePath) {
+      alert('Please select a plugin and engine.');
       return;
     }
 
@@ -141,7 +141,7 @@ export function PluginHelperPanel() {
     try {
       const result = await invoke<string>('build_plugin', {
         upluginPath: selectedPlugin.upluginPath,
-        engineVersion: selectedEngineVersion,
+        enginePath: selectedEnginePath,
         createZip,
       });
       console.log('Build result:', result);
@@ -196,13 +196,13 @@ export function PluginHelperPanel() {
         </div>
 
         <div>
-          <label className="block text-sm text-slate-300 mb-1">Engine version</label>
+          <label className="block text-sm text-slate-300 mb-1">Engine</label>
           <Select
-            value={selectedEngineVersion}
-            onChange={(v) => setSelectedEngineVersion(v)}
+            value={selectedEnginePath}
+            onChange={(v) => setSelectedEnginePath(v)}
             placeholder={engines.length === 0 ? 'No engines found' : 'Select engine'}
             disabled={engines.length === 0}
-            options={engines.map((e) => ({ value: e.version, label: e.version }))}
+            options={getEngineSelectOptions(engines)}
           />
         </div>
 
@@ -231,7 +231,7 @@ export function PluginHelperPanel() {
           onClick={handleBuild}
           disabled={
             !selectedPlugin ||
-            !selectedEngineVersion ||
+            !selectedEnginePath ||
             running ||
             selectedProjectPath === '__browse__' ||
             hasBlockingProcesses

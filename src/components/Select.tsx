@@ -23,6 +23,7 @@ interface SelectProps {
 
 const DROPDOWN_BASE =
   'fixed z-[9999] rounded-md border border-slate-600/80 bg-[var(--color-bg-card)] shadow-xl max-h-32 overflow-y-auto';
+const DROPDOWN_MAX_HEIGHT = 128; // max-h-32 = 8rem
 const OPTION_STYLE =
   'w-full px-2 py-1.5 text-left text-xs text-slate-200 hover:bg-slate-700/80 hover:text-slate-100 truncate';
 const TRIGGER_STYLE =
@@ -46,8 +47,10 @@ export function Select({
     const updatePosition = () => {
       if (!ref.current) return;
       const rect = ref.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom - 4;
+      const openAbove = spaceBelow < DROPDOWN_MAX_HEIGHT;
       setDropdownRect({
-        top: rect.bottom + 4,
+        top: openAbove ? rect.top - 4 - DROPDOWN_MAX_HEIGHT : rect.bottom + 4,
         left: rect.left,
         width: rect.width,
       });

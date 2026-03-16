@@ -6,18 +6,25 @@
 import { invoke } from '@tauri-apps/api/core';
 import { useProjects } from '../hooks/useProjects';
 import { useEngines } from '../hooks/useEngines';
+import { useSettings } from '../hooks/useSettings';
 import { useScheduledJobs } from '../hooks/useScheduledJobs';
 import { useRunScheduledJob } from '../hooks/useRunScheduledJob';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
 import { hasBlockingProcessesForJob, getBlockingMessageForJob } from '../utils/jobBlocking';
 import { LauncherCard } from './LauncherCard';
 import { AddProjectButton } from './AddProjectButton';
+import { AddEngineCard } from './AddEngineCard';
 import { PinnedJobCard } from './PinnedJobCard';
 import type { ProjectInfo, EngineEntry } from '../types';
 
-export function LauncherTab() {
+interface LauncherTabProps {
+  onOpenSettings?: () => void;
+}
+
+export function LauncherTab({ onOpenSettings }: LauncherTabProps) {
   const { projects, addProject, removeProject, refresh, loading: projectsLoading } = useProjects();
   const { engines, loading: enginesLoading } = useEngines();
+  const { settings } = useSettings();
   const { jobs } = useScheduledJobs();
   const { runJob, running: runJobRunning } = useRunScheduledJob();
   const umapMonitor = useProcessMonitor('umap');
@@ -35,6 +42,9 @@ export function LauncherTab() {
     try {
       const project = await invoke<ProjectInfo>('analyse_uproject', { path: uprojectPath });
       await addProject(project);
+      if (project.engineInstallPath === 'Unknown' && onOpenSettings) {
+        onOpenSettings();
+      }
     } catch (e) {
       console.error('Failed to add project:', e);
     }
@@ -61,17 +71,19 @@ export function LauncherTab() {
         {enginesLoading ? (
           <p className="text-slate-500 text-sm">Loading engines...</p>
         ) : (
-          <div className="flex flex-wrap gap-3">
-            {engines.map((e) => (
-              <LauncherCard
-                key={e.version}
-                project={engineAsProjectInfo(e)}
-                isEngine
-              />
-            ))}
+          <div className="flex flex-wrap gap-3 items-start">
             {engines.length === 0 && (
               <p className="text-slate-500 text-sm">No engines found.</p>
             )}
+            {engines.map((e) => (
+              <LauncherCard
+                key={e.id ?? e.editorPath}
+                project={engineAsProjectInfo(e)}
+                isEngine
+                isCustomEngine={e.isCustom}
+              />
+            ))}
+            {onOpenSettings && <AddEngineCard onOpenSettings={onOpenSettings} />}
           </div>
         )}
       </section>
@@ -91,13 +103,20 @@ export function LauncherTab() {
           </button>
         </div>
         <div className="flex flex-wrap gap-3">
-          {projects.map((p) => (
-            <LauncherCard
-              key={p.projectPath}
-              project={p}
-              onRemove={handleRemoveProject}
-            />
-          ))}
+          {projects.map((p) => {
+            const effectiveEnginePath = settings.projectEngineOverrides?.[p.projectPath] ?? p.engineInstallPath;
+            const effectiveProject = { ...p, engineInstallPath: effectiveEnginePath };
+            const engineEntry = engines.find((e) => e.editorPath === effectiveEnginePath);
+            const isCustomEngine = engineEntry?.isCustom ?? false;
+            return (
+              <LauncherCard
+                key={p.projectPath}
+                project={effectiveProject}
+                onRemove={handleRemoveProject}
+                isCustomEngine={isCustomEngine}
+              />
+            );
+          })}
           <AddProjectButton onAdd={handleAddProject} />
         </div>
       </section>

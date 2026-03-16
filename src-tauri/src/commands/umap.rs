@@ -51,8 +51,8 @@ pub async fn run_map_command(
         "-run=WorldPartitionBuilderCommandlet".to_string(),
         "-AllowCommandletRendering".to_string(),
         format!("-builder={}", builder),
-        "-Unattended".to_string(),        // Suppress dialogs, run headless
-        "-RenderOffscreen".to_string(),   // Disable window rendering, render offscreen (GPU required)
+        "-Unattended".to_string(),      // Suppress dialogs, run headless
+        "-RenderOffscreen".to_string(), // Disable window rendering, render offscreen (GPU required)
     ];
     if let Some(ref extra) = extra_args {
         if !extra.is_empty() {
@@ -129,7 +129,11 @@ pub async fn run_map_command(
     stream_processor::emit_log(&app, "HLOD generation completed.", Some("green"));
 
     if launch_map_after {
-        stream_processor::emit_log(&app, &format!("Launching editor with map: {}", map_path), Some("blue"));
+        stream_processor::emit_log(
+            &app,
+            &format!("Launching editor with map: {}", map_path),
+            Some("blue"),
+        );
         let launch_args = vec![project_path.clone(), map_path.clone()];
         let mut launch_cmd = build_cmd(&engine_path, &launch_args, Some(&cwd));
         let _ = launch_cmd.spawn();

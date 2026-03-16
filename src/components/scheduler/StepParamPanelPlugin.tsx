@@ -9,7 +9,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../../hooks/useProjects';
 import { useEngines } from '../../hooks/useEngines';
 import type { ProjectInfo } from '../../types';
-import { getProjectDisplayLabel } from '../../utils/project';
+import { getProjectDisplayLabel, getEngineSelectOptions } from '../../utils/project';
 import { Select } from '../Select';
 
 interface PluginInfo {
@@ -27,7 +27,7 @@ export function StepParamPanelPlugin({ value, onChange }: StepParamPanelPluginPr
   const { projects, addProject } = useProjects();
   const projectPath = (value.project as string) ?? '';
   const upluginPath = (value.upluginPath as string) ?? '';
-  const engineVersion = (value.engineVersion as string) ?? '';
+  const enginePath = (value.enginePath as string) ?? (value.engineVersion as string) ?? '';
   const createZip = (value.createZip as boolean) ?? true;
   const { engines } = useEngines();
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
@@ -124,13 +124,13 @@ export function StepParamPanelPlugin({ value, onChange }: StepParamPanelPluginPr
         />
       </div>
       <div>
-        <label className="block text-sm text-slate-300 mb-1">Engine version</label>
+        <label className="block text-sm text-slate-300 mb-1">Engine</label>
         <Select
-          value={engineVersion}
-          onChange={(v) => onChange({ ...value, engineVersion: v })}
+          value={enginePath}
+          onChange={(v) => onChange({ ...value, enginePath: v })}
           placeholder={engines.length === 0 ? 'No engines' : 'Select engine'}
           disabled={engines.length === 0}
-          options={engines.map((e) => ({ value: e.version, label: e.version }))}
+          options={getEngineSelectOptions(engines)}
         />
       </div>
       <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">

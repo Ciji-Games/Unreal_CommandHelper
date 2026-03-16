@@ -20,10 +20,11 @@ function mapDisplayName(mapPath: string): string {
 interface LauncherCardProps {
   project: ProjectInfo;
   isEngine?: boolean;
+  isCustomEngine?: boolean;
   onRemove?: (projectPath: string) => void;
 }
 
-export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCardProps) {
+export function LauncherCard({ project, isEngine = false, isCustomEngine = false, onRemove }: LauncherCardProps) {
   const [thumbnailSrc, setThumbnailSrc] = useState<string>(ASSETS.ueIcon);
   const [launchDisabled, setLaunchDisabled] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -118,7 +119,14 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
   if (isEngine) {
     return (
       <div className="flex flex-col rounded-lg border border-slate-600/60 bg-slate-800/50 w-36 shrink-0 shadow-sm hover:border-slate-500/50 transition-colors">
-        <div className="p-3 space-y-2">
+        <div className="p-3 space-y-2 relative">
+          {isCustomEngine && (
+            <span className="absolute top-1.5 right-1.5 p-1 rounded-md bg-slate-700/80" title="Custom engine">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+            </span>
+          )}
           <h3 className="font-medium text-slate-100 truncate text-sm text-center" title={project.projectName}>
             {project.projectName}
           </h3>
@@ -165,8 +173,15 @@ export function LauncherCard({ project, isEngine = false, onRemove }: LauncherCa
             <img src={ASSETS.cppLogo} alt="C++" className="w-4 h-4" />
           </span>
         )}
-        {/* Bottom right: short engine version */}
-        <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded text-xs font-medium text-slate-300 bg-slate-900/90">
+        {/* Bottom right: short engine version + custom icon */}
+        <span className="absolute bottom-1.5 right-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium text-slate-300 bg-slate-900/90">
+          {isCustomEngine && (
+            <span title="Custom engine">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+            </span>
+          )}
           {project.engineVersion}
         </span>
       </div>

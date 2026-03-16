@@ -30,10 +30,7 @@ pub async fn regenerate_project(
         return Err("Invalid or missing .uproject file".to_string());
     }
 
-    let project_dir = uproj
-        .parent()
-        .ok_or("Invalid project path")?
-        .to_path_buf();
+    let project_dir = uproj.parent().ok_or("Invalid project path")?.to_path_buf();
     if !project_dir.join("Source").exists() {
         return Err("Regenerate is only for C++ projects (requires Source folder). This project has no C++ code.".to_string());
     }
@@ -44,7 +41,11 @@ pub async fn regenerate_project(
         .to_string();
 
     if !Path::new(&version_selector_path).exists() {
-        stream_processor::emit_log(&app, "[ERROR] UnrealVersionSelector.exe not found.", Some("red"));
+        stream_processor::emit_log(
+            &app,
+            "[ERROR] UnrealVersionSelector.exe not found.",
+            Some("red"),
+        );
         return Err("UnrealVersionSelector.exe not found".to_string());
     }
 
@@ -62,12 +63,22 @@ pub async fn regenerate_project(
         let project_name = project_name.clone();
         move || -> Result<(), String> {
             // 1. Delete folders
-            let folders = ["Intermediate", "DerivedDataCache", "Build", ".vs", "Binaries"];
+            let folders = [
+                "Intermediate",
+                "DerivedDataCache",
+                "Build",
+                ".vs",
+                "Binaries",
+            ];
             for folder in folders {
                 let folder_path = project_dir.join(folder);
                 if folder_path.exists() {
                     match std::fs::remove_dir_all(&folder_path) {
-                        Ok(()) => stream_processor::emit_log(&app, &format!("Deleted folder: {}", folder), Some("blue")),
+                        Ok(()) => stream_processor::emit_log(
+                            &app,
+                            &format!("Deleted folder: {}", folder),
+                            Some("blue"),
+                        ),
                         Err(e) => stream_processor::emit_log(
                             &app,
                             &format!("[ERROR] Could not delete {}: {}", folder, e),
@@ -80,15 +91,15 @@ pub async fn regenerate_project(
             // 2. Delete .sln and .vsconfig (correct path: same dir as .uproject, stem.sln)
             let sln_path = project_dir.join(format!("{}.sln", project_name.as_str()));
             let vsconfig_path = project_dir.join(".vsconfig");
-            for (path, label) in [
-                (sln_path, "solution file"),
-                (vsconfig_path, ".vsconfig"),
-            ] {
+            for (path, label) in [(sln_path, "solution file"), (vsconfig_path, ".vsconfig")] {
                 if path.exists() {
                     match std::fs::remove_file(&path) {
                         Ok(()) => stream_processor::emit_log(
                             &app,
-                            &format!("Deleted file: {}", path.file_name().unwrap_or_default().to_string_lossy()),
+                            &format!(
+                                "Deleted file: {}",
+                                path.file_name().unwrap_or_default().to_string_lossy()
+                            ),
                             Some("blue"),
                         ),
                         Err(e) => stream_processor::emit_log(
@@ -118,7 +129,12 @@ pub async fn regenerate_project(
             let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
             let stdout_reader = std::io::BufReader::new(stdout);
             let stderr_reader = std::io::BufReader::new(stderr);
-            process_streams(stdout_reader, stderr_reader, app.clone(), ToolMode::Regenerate);
+            process_streams(
+                stdout_reader,
+                stderr_reader,
+                app.clone(),
+                ToolMode::Regenerate,
+            );
 
             child.wait().map_err(|e| e.to_string())?;
             running_process::clear_running_pid();
@@ -156,7 +172,11 @@ pub async fn regenerate_project(
                         let build_bat = build_bat.to_path_buf();
                         let target = target.clone();
                         move || -> Result<(), String> {
-                            stream_processor::emit_log(&app, "Building project (Development Editor)...", Some("blue"));
+                            stream_processor::emit_log(
+                                &app,
+                                "Building project (Development Editor)...",
+                                Some("blue"),
+                            );
                             stream_processor::emit_progress(&app, 25, 0);
                             let batch_dir = build_bat.parent().ok_or("Invalid Build.bat path")?;
                             let cwd = batch_dir.to_str().ok_or("Invalid BatchFiles path")?;
@@ -180,12 +200,21 @@ pub async fn regenerate_project(
                             let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
                             let stdout_reader = std::io::BufReader::new(stdout);
                             let stderr_reader = std::io::BufReader::new(stderr);
-                            process_streams(stdout_reader, stderr_reader, app.clone(), ToolMode::Build);
+                            process_streams(
+                                stdout_reader,
+                                stderr_reader,
+                                app.clone(),
+                                ToolMode::Build,
+                            );
 
                             let status = child.wait().map_err(|e| e.to_string())?;
                             running_process::clear_running_pid();
                             if status.success() {
-                                stream_processor::emit_log(&app, "Build completed successfully!", Some("green"));
+                                stream_processor::emit_log(
+                                    &app,
+                                    "Build completed successfully!",
+                                    Some("green"),
+                                );
                                 Ok(())
                             } else {
                                 stream_processor::emit_log(
@@ -236,7 +265,11 @@ pub async fn regenerate_project(
             stream_processor::emit_log(&app, "Opening solution...", Some("blue"));
             let _ = crate::commands::process::open_file(sln_path.to_string_lossy().to_string());
         } else {
-            stream_processor::emit_log(&app, "[ERROR] .sln file not found after generation.", Some("red"));
+            stream_processor::emit_log(
+                &app,
+                "[ERROR] .sln file not found after generation.",
+                Some("red"),
+            );
         }
     }
 

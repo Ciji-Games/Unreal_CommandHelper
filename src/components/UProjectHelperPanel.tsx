@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../hooks/useProjects';
+import { useSettings } from '../hooks/useSettings';
 import { useLog } from '../contexts/LogContext';
 import { useProgress } from '../contexts/ProgressContext';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
@@ -21,6 +22,7 @@ const PACKAGE_CONFIGS = ['Development', 'Shipping'];
 
 export function UProjectHelperPanel() {
   const { projects, addProject } = useProjects();
+  const { settings } = useSettings();
   const { clearLog } = useLog();
   const { startProgress, finishProgress } = useProgress();
   const { runningProcesses: blockingProcesses, hasBlockingProcesses } =
@@ -36,6 +38,10 @@ export function UProjectHelperPanel() {
   const [autocheckin, setAutocheckin] = useState(false);
 
   const selectedProject = projects.find((p) => p.projectPath === selectedProjectPath);
+  const effectiveEnginePath =
+    selectedProject && settings.projectEngineOverrides
+      ? settings.projectEngineOverrides[selectedProject.projectPath] ?? selectedProject.engineInstallPath
+      : selectedProject?.engineInstallPath ?? '';
 
   const projectName =
     selectedProjectPath.split(/[/\\]/).pop()?.replace(/\.uproject$/, '') ?? 'Project';
@@ -105,7 +111,7 @@ export function UProjectHelperPanel() {
 
   const runCook = async () => {
     if (!selectedProject) return;
-    const enginePath = selectedProject.engineInstallPath;
+    const enginePath = effectiveEnginePath;
     if (!enginePath || enginePath === 'Unknown') {
       alert('Engine path not found for this project. Ensure the project uses an installed engine.');
       return;
@@ -131,7 +137,7 @@ export function UProjectHelperPanel() {
 
   const runPackage = async () => {
     if (!selectedProject) return;
-    const enginePath = selectedProject.engineInstallPath;
+    const enginePath = effectiveEnginePath;
     if (!enginePath || enginePath === 'Unknown') {
       alert('Engine path not found for this project. Ensure the project uses an installed engine.');
       return;
@@ -164,7 +170,7 @@ export function UProjectHelperPanel() {
 
   const runArchive = async () => {
     if (!selectedProject) return;
-    const enginePath = selectedProject.engineInstallPath;
+    const enginePath = effectiveEnginePath;
     if (!enginePath || enginePath === 'Unknown') {
       alert('Engine path not found for this project. Ensure the project uses an installed engine.');
       return;
@@ -225,7 +231,7 @@ export function UProjectHelperPanel() {
 
   const runResavePackages = async () => {
     if (!selectedProject) return;
-    const enginePath = selectedProject.engineInstallPath;
+    const enginePath = effectiveEnginePath;
     if (!enginePath || enginePath === 'Unknown') {
       alert('Engine path not found for this project. Ensure the project uses an installed engine.');
       return;

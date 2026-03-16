@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../hooks/useProjects';
+import { useSettings } from '../hooks/useSettings';
 import { useLog } from '../contexts/LogContext';
 import { useProgress } from '../contexts/ProgressContext';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
@@ -83,6 +84,7 @@ function AssetPicker({
 
 export function MovieRenderQueuePanel() {
   const { projects, addProject } = useProjects();
+  const { settings } = useSettings();
   const { clearLog } = useLog();
   const { startProgress, finishProgress } = useProgress();
   const { hasBlockingProcesses } = useProcessMonitor(UPROJECT_PROCESS_GROUP);
@@ -95,6 +97,10 @@ export function MovieRenderQueuePanel() {
 
   const selectedProject = projects.find((p) => p.projectPath === selectedProjectPath);
   const maps = selectedProject?.maps ?? [];
+  const effectiveEnginePath =
+    selectedProject && settings.projectEngineOverrides
+      ? settings.projectEngineOverrides[selectedProject.projectPath] ?? selectedProject.engineInstallPath
+      : selectedProject?.engineInstallPath ?? '';
 
   useEffect(() => {
     if (!selectedProjectPath) {
@@ -140,7 +146,7 @@ export function MovieRenderQueuePanel() {
       alert('In Level Sequence + Config mode, please select a Level Sequence.');
       return;
     }
-    const enginePath = selectedProject.engineInstallPath;
+    const enginePath = effectiveEnginePath;
     if (!enginePath || enginePath === 'Unknown') {
       alert('Engine path not found for this project. Ensure the project uses an installed engine.');
       return;

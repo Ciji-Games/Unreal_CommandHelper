@@ -14,6 +14,21 @@ export interface ProjectInfo {
 export interface EngineEntry {
   version: string;
   editorPath: string;
+  /** Custom display name (e.g. "UE 5.4 Custom Build"). Only for custom engines. */
+  displayName?: string;
+  /** True if user-added, not from registry. */
+  isCustom?: boolean;
+  /** Unique ID for custom engines. Registry engines use editorPath as id. */
+  id?: string;
+}
+
+/** Custom engine stored in user preferences */
+export interface CustomEngineEntry {
+  id: string;
+  displayName: string;
+  editorPath: string;
+  version: string;
+  enabled?: boolean;
 }
 
 /** Process monitoring - status for a single monitored application */

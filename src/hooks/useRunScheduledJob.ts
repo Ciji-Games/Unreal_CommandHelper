@@ -52,7 +52,11 @@ export function useRunScheduledJob() {
         const params = step.params;
         const projectPath = params.project as string;
         const project = projects.find((p) => p.projectPath === projectPath);
-        const enginePath = project?.engineInstallPath ?? '';
+        const enginePath =
+          (params.enginePath as string) ||
+          settings.projectEngineOverrides?.[projectPath] ||
+          project?.engineInstallPath ||
+          '';
 
         try {
           if (step.id === 'delete_hlod') {
@@ -196,7 +200,7 @@ export function useRunScheduledJob() {
           } else if (step.id === 'build_plugin') {
             await invoke('build_plugin', {
               upluginPath: params.upluginPath ?? '',
-              engineVersion: params.engineVersion ?? '',
+              enginePath: params.enginePath ?? '',
               createZip: params.createZip ?? true,
             });
           } else if (step.id === 'launch') {
@@ -240,6 +244,7 @@ export function useRunScheduledJob() {
     [
       projects,
       settings.unrealVersionSelectorPath,
+      settings.projectEngineOverrides,
       clearLog,
       startProgressForScheduler,
       setCurrentStep,

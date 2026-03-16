@@ -28,9 +28,7 @@ pub fn analyse_uproject(path: String) -> Result<ProjectInfo, String> {
         .unwrap_or("Unknown")
         .to_string();
 
-    let project_dir = uproj_path
-        .parent()
-        .ok_or("Invalid project path")?;
+    let project_dir = uproj_path.parent().ok_or("Invalid project path")?;
 
     // Parse EngineAssociation from .uproject JSON
     let engine_version = {
@@ -76,10 +74,7 @@ pub fn analyse_uproject(path: String) -> Result<ProjectInfo, String> {
 pub fn get_project_thumbnail_path(project_path: String) -> Result<Option<String>, String> {
     let path = Path::new(&project_path);
     let project_dir = path.parent().ok_or("Invalid project path")?;
-    let stem = path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("");
+    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
 
     // 1. .png next to .uproject
     let png_next = project_dir.join(format!("{}.png", stem));
@@ -115,10 +110,7 @@ fn scan_maps_for_project_dir(project_dir: &Path) -> Vec<String> {
         .filter_map(|e| e.ok())
         .filter(|e| e.path().extension().map_or(false, |ext| ext == "umap"))
         .map(|e| {
-            let rel = e
-                .path()
-                .strip_prefix(&content_dir)
-                .unwrap_or(e.path());
+            let rel = e.path().strip_prefix(&content_dir).unwrap_or(e.path());
             let path_str = rel.with_extension("").to_string_lossy().replace('\\', "/");
             format!("/Game/{}", path_str)
         })

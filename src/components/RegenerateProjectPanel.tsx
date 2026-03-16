@@ -89,7 +89,10 @@ export function RegenerateProjectPanel() {
       return;
     }
     const selectedProject = projects.find((p) => p.projectPath === selectedPath);
-    const enginePath = selectedProject?.engineInstallPath ?? '';
+    const enginePath =
+      selectedProject && settings.projectEngineOverrides
+        ? settings.projectEngineOverrides[selectedProject.projectPath] ?? selectedProject.engineInstallPath ?? ''
+        : selectedProject?.engineInstallPath ?? '';
 
     clearLog();
     setRunning(true);
