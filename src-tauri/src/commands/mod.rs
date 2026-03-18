@@ -1,6 +1,7 @@
 //! Tauri commands for UE Launcher
 
 pub mod batch_commit;
+pub mod ide_detection;
 pub mod monitor;
 pub mod movie_render_queue;
 pub mod plugin;

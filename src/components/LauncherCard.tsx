@@ -17,14 +17,18 @@ function mapDisplayName(mapPath: string): string {
   return mapPath.split(/[/\\]/).pop() || mapPath;
 }
 
+type SlnIde = 'rider' | 'visual_studio' | 'unknown';
+
 interface LauncherCardProps {
   project: ProjectInfo;
   isEngine?: boolean;
   isCustomEngine?: boolean;
   onRemove?: (projectPath: string) => void;
+  slnIde?: SlnIde;
+  riderPath?: string | null;
 }
 
-export function LauncherCard({ project, isEngine = false, isCustomEngine = false, onRemove }: LauncherCardProps) {
+export function LauncherCard({ project, isEngine = false, isCustomEngine = false, onRemove, slnIde, riderPath }: LauncherCardProps) {
   const [thumbnailSrc, setThumbnailSrc] = useState<string>(ASSETS.ueIcon);
   const [launchDisabled, setLaunchDisabled] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -101,15 +105,25 @@ export function LauncherCard({ project, isEngine = false, isCustomEngine = false
 
   const handleLaunchSln = async () => {
     if (launchDisabled) return;
-    const slnPath = project.projectPath.replace(/\.uproject$/i, '.sln');
     try {
       startLaunchCooldown();
-      await invoke('open_file', { path: slnPath });
+      if (slnIde === 'rider') {
+        await invoke('open_uproject_with_rider', {
+          uprojectPath: project.projectPath,
+          riderPath: riderPath ?? null,
+        });
+      } else {
+        const slnPath = project.projectPath.replace(/\.uproject$/i, '.sln');
+        await invoke('open_file', { path: slnPath });
+      }
     } catch (e) {
-      console.error('Failed to launch .sln:', e);
+      console.error('Failed to launch IDE:', e);
       setLaunchDisabled(false);
     }
   };
+
+  const ideButtonLabel =
+    slnIde === 'rider' ? 'Open Rider' : slnIde === 'visual_studio' ? 'Open V.S.' : 'Open .sln';
 
   const handleDelete = () => {
     onRemove?.(project.projectPath);
@@ -249,9 +263,15 @@ export function LauncherCard({ project, isEngine = false, isCustomEngine = false
               onClick={handleLaunchSln}
               disabled={launchDisabled}
               className="w-full px-2 py-1.5 text-xs font-medium rounded-md bg-slate-600/80 hover:bg-slate-500/80 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-600/80"
-              title="Opens the .sln file in the default IDE (Visual Studio or Rider)."
+              title={
+                slnIde === 'rider'
+                  ? 'Opens the project in Rider (.uproject)'
+                  : slnIde === 'visual_studio'
+                    ? 'Opens the .sln file in Visual Studio'
+                    : 'Opens the .sln file in the default IDE'
+              }
             >
-              Open .sln
+              {ideButtonLabel}
             </button>
           )}
         </div>

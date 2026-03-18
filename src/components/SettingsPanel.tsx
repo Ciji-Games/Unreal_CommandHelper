@@ -34,6 +34,11 @@ export function SettingsPanel({ open: isOpen, onClose }: SettingsPanelProps) {
     await setSetting('startWithWindows', next);
   }, [settings.startWithWindows, setSetting]);
 
+  const handleNotificationOnCompleteChange = useCallback(async () => {
+    const next = !settings.notificationOnComplete;
+    await setSetting('notificationOnComplete', next);
+  }, [settings.notificationOnComplete, setSetting]);
+
   const toggleEngineDisabled = useCallback(
     async (editorPath: string) => {
       const disabled = new Set(settings.disabledEnginePaths);
@@ -195,6 +200,15 @@ export function SettingsPanel({ open: isOpen, onClose }: SettingsPanelProps) {
                 className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
               />
               <span className="text-slate-200">Start with Windows</span>
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.notificationOnComplete}
+                onChange={handleNotificationOnCompleteChange}
+                className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
+              />
+              <span className="text-slate-200">Notification on complete</span>
             </label>
           </section>
 

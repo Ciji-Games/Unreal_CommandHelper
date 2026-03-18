@@ -13,6 +13,7 @@ import {
   useState,
 } from 'react';
 import { listen } from '@tauri-apps/api/event';
+import { useSettingsContext } from './SettingsContext';
 
 interface ProgressUpdate {
   percent: number;
@@ -49,6 +50,7 @@ interface ProgressContextValue {
 const ProgressContext = createContext<ProgressContextValue | null>(null);
 
 export function ProgressProvider({ children }: { children: React.ReactNode }) {
+  const { settings } = useSettingsContext();
   const [running, setRunning] = useState(false);
   const [percent, setPercent] = useState(0);
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -56,6 +58,7 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
   const [stepProgress, setStepProgress] = useState<StepProgress | null>(null);
   const [shouldOpenOutputLog, setShouldOpenOutputLog] = useState(false);
   const stopRequestedRef = useRef(false);
+  const prevRunningRef = useRef(running);
 
   const requestStop = useCallback(() => {
     stopRequestedRef.current = true;
@@ -147,6 +150,35 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
     }, 1000);
     return () => clearInterval(interval);
   }, [running, startTime]);
+
+  useEffect(() => {
+    if (prevRunningRef.current && !running) {
+      (async () => {
+        if (!settings.notificationOnComplete) return;
+        try {
+          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          const win = getCurrentWindow();
+          const [minimized, focused] = await Promise.all([win.isMinimized(), win.isFocused()]);
+          const shouldNotify = minimized || !focused;
+          if (shouldNotify) {
+            const { isPermissionGranted, requestPermission, sendNotification } = await import(
+              '@tauri-apps/plugin-notification'
+            );
+            let granted = await isPermissionGranted();
+            if (!granted) {
+              granted = (await requestPermission()) === 'granted';
+            }
+            if (granted) {
+              sendNotification({ title: 'UE Launcher', body: 'Process completed.' });
+            }
+          }
+        } catch (e) {
+          console.error('Notification failed:', e);
+        }
+      })();
+    }
+    prevRunningRef.current = running;
+  }, [running, settings.notificationOnComplete]);
 
   return (
     <ProgressContext.Provider

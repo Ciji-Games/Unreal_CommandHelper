@@ -188,7 +188,10 @@ pub async fn regenerate_project(
                 (
                     version_selector_path.clone(),
                     vec!["-projectfiles".to_string(), uproject_path.clone()],
-                    project_dir.to_str().filter(|s| !s.is_empty()).map(String::from),
+                    project_dir
+                        .to_str()
+                        .filter(|s| !s.is_empty())
+                        .map(String::from),
                 )
             };
 

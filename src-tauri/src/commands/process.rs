@@ -51,6 +51,87 @@ pub fn launch_project_with_map(
     Ok(())
 }
 
+/// Open a .uproject file with Rider, bypassing default file association.
+/// If rider_path is provided and exists, use it. Otherwise search common install locations.
+/// Falls back to open_file with .sln if Rider is not found.
+#[tauri::command]
+pub fn open_uproject_with_rider(
+    uproject_path: String,
+    rider_path: Option<String>,
+) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        let rider_exe = rider_path
+            .filter(|p| std::path::Path::new(p).exists())
+            .or_else(find_rider_exe);
+
+        match rider_exe {
+            Some(exe) => {
+                std::process::Command::new("cmd")
+                    .args(["/c", "start", "", &exe, &uproject_path])
+                    .creation_flags(0x0800_0000u32) // CREATE_NO_WINDOW
+                    .spawn()
+                    .map_err(|e| e.to_string())?;
+            }
+            None => {
+                // Fallback: open .sln with default association
+                let sln_path = if uproject_path.to_lowercase().ends_with(".uproject") {
+                    uproject_path[..uproject_path.len() - 9].to_string() + ".sln"
+                } else {
+                    uproject_path + ".sln"
+                };
+                return open_file(sln_path);
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (uproject_path, rider_path);
+        return Err("open_uproject_with_rider is only supported on Windows".to_string());
+    }
+    Ok(())
+}
+
+#[cfg(windows)]
+fn find_rider_exe() -> Option<String> {
+    use std::path::Path;
+
+    let local_app_data = std::env::var("LOCALAPPDATA").ok()?;
+    let program_files = std::env::var("PROGRAMFILES").ok()?;
+    let program_files_x86 = std::env::var("PROGRAMFILES(X86)").unwrap_or_default();
+
+    // Toolbox: %LOCALAPPDATA%\Programs\JetBrains Rider 2024.1\bin\rider64.exe
+    // Or: %LOCALAPPDATA%\Programs\Rider\bin\rider64.exe
+    // Standard: %PROGRAMFILES%\JetBrains\Rider 2024.1\bin\rider64.exe
+    let search_bases = [
+        format!("{}\\Programs", local_app_data),
+        format!("{}\\JetBrains", program_files),
+        format!("{}\\JetBrains", program_files_x86),
+    ];
+
+    for base in &search_bases {
+        let base_path = Path::new(base);
+        if !base_path.exists() {
+            continue;
+        }
+        let entries = match std::fs::read_dir(base_path) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.filter_map(Result::ok) {
+            let name = entry.file_name().to_string_lossy().to_lowercase();
+            let path = entry.path();
+            if name.starts_with("rider") && path.is_dir() {
+                let bin = path.join("bin").join("rider64.exe");
+                if bin.exists() {
+                    return Some(bin.to_string_lossy().to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
 /// Open a file with the default application (e.g. .uproject → UnrealVersionSelector, .sln → VS/Rider).
 /// Uses shell association on Windows.
 #[tauri::command]

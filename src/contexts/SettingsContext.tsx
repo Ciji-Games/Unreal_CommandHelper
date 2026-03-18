@@ -14,6 +14,7 @@ export interface AppSettings {
   autoSwitchBooster: boolean;
   priorityBooster: number;
   startWithWindows: boolean;
+  notificationOnComplete: boolean;
   customEngines: CustomEngineEntry[];
   disabledEnginePaths: string[];
   projectEngineOverrides: Record<string, string>;
@@ -35,6 +36,7 @@ const storeKeyMap: Record<keyof AppSettings, string> = {
   autoSwitchBooster: STORE_KEYS.AUTO_SWITCH_BOOSTER,
   priorityBooster: STORE_KEYS.PRIORITY_BOOSTER,
   startWithWindows: STORE_KEYS.START_WITH_WINDOWS,
+  notificationOnComplete: STORE_KEYS.NOTIFICATION_ON_COMPLETE,
   customEngines: STORE_KEYS.CUSTOM_ENGINES,
   disabledEnginePaths: STORE_KEYS.DISABLED_ENGINE_PATHS,
   projectEngineOverrides: STORE_KEYS.PROJECT_ENGINE_OVERRIDES,
@@ -58,6 +60,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       const autoSwitch = await store.get<boolean>(STORE_KEYS.AUTO_SWITCH_BOOSTER);
       const priority = await store.get<number>(STORE_KEYS.PRIORITY_BOOSTER);
       const startWithWindows = await store.get<boolean>(STORE_KEYS.START_WITH_WINDOWS);
+      const notificationOnComplete = await store.get<boolean>(STORE_KEYS.NOTIFICATION_ON_COMPLETE);
       const customEngines = await store.get<CustomEngineEntry[]>(STORE_KEYS.CUSTOM_ENGINES);
       const disabledEnginePaths = await store.get<string[]>(STORE_KEYS.DISABLED_ENGINE_PATHS);
       const projectEngineOverrides = await store.get<Record<string, string>>(STORE_KEYS.PROJECT_ENGINE_OVERRIDES);
@@ -68,6 +71,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         autoSwitchBooster: autoSwitch ?? DEFAULT_SETTINGS.autoSwitchBooster,
         priorityBooster: priority ?? DEFAULT_SETTINGS.priorityBooster,
         startWithWindows: startWithWindows ?? DEFAULT_SETTINGS.startWithWindows,
+        notificationOnComplete: notificationOnComplete ?? DEFAULT_SETTINGS.notificationOnComplete,
         customEngines: customEngines ?? DEFAULT_SETTINGS.customEngines,
         disabledEnginePaths: disabledEnginePaths ?? DEFAULT_SETTINGS.disabledEnginePaths,
         projectEngineOverrides: projectEngineOverrides ?? DEFAULT_SETTINGS.projectEngineOverrides,

@@ -8,6 +8,7 @@ mod utils;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
@@ -26,7 +27,9 @@ pub fn run() {
             commands::projects::get_project_thumbnail_path,
             commands::projects::filter_existing_paths,
             commands::projects::scan_project_maps,
+            commands::ide_detection::detect_sln_ide,
             commands::process::open_file,
+            commands::process::open_uproject_with_rider,
             commands::process::launch_project_with_map,
             commands::process::run_command,
             commands::process::kill_process,
