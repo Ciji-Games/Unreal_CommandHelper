@@ -43,7 +43,10 @@ pub async fn run_movie_render_queue(
         .to_string_lossy()
         .to_string();
     if !Path::new(&editor_cmd).exists() {
-        return Err("Editor command-line executable not found (UnrealEditor-Cmd.exe or UE4Editor-Cmd.exe)".to_string());
+        return Err(
+            "Editor command-line executable not found (UnrealEditor-Cmd.exe or UE4Editor-Cmd.exe)"
+                .to_string(),
+        );
     }
 
     let bin_dir = editor_exe.parent().ok_or("Invalid engine path")?;

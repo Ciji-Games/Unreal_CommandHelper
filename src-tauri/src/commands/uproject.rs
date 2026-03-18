@@ -60,7 +60,10 @@ pub async fn run_cook(
         .to_string_lossy()
         .to_string();
     if !Path::new(&editor_cmd).exists() {
-        return Err("Editor command-line executable not found (UnrealEditor-Cmd.exe or UE4Editor-Cmd.exe)".to_string());
+        return Err(
+            "Editor command-line executable not found (UnrealEditor-Cmd.exe or UE4Editor-Cmd.exe)"
+                .to_string(),
+        );
     }
 
     let cook_platform = platform_for_cook(&platform);

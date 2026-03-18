@@ -27,11 +27,21 @@ pub fn detect_sln_ide() -> Result<SlnIdeResult, String> {
     {
         let prog_id = match get_sln_prog_id() {
             Ok(p) => p,
-            Err(_) => return Ok(SlnIdeResult { ide: "unknown".to_string(), rider_path: None }),
+            Err(_) => {
+                return Ok(SlnIdeResult {
+                    ide: "unknown".to_string(),
+                    rider_path: None,
+                })
+            }
         };
         let (command, exe_path) = match get_shell_open_command(&prog_id) {
             Ok(c) => c,
-            Err(_) => return Ok(SlnIdeResult { ide: "unknown".to_string(), rider_path: None }),
+            Err(_) => {
+                return Ok(SlnIdeResult {
+                    ide: "unknown".to_string(),
+                    rider_path: None,
+                })
+            }
         };
 
         let path_lower = exe_path.to_lowercase();

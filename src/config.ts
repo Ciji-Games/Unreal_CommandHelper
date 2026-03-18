@@ -17,6 +17,7 @@ export const STORE_KEYS = {
   DISABLED_ENGINE_PATHS: 'disabledEnginePaths',
   PROJECT_ENGINE_OVERRIDES: 'projectEngineOverrides',
   DEFAULT_ENGINE_BY_VERSION: 'defaultEngineByVersion',
+  NOTIFICATION_ON_COMPLETE: 'notificationOnComplete',
 } as const;
 
 export const DEFAULT_SETTINGS = {
@@ -24,6 +25,7 @@ export const DEFAULT_SETTINGS = {
   autoSwitchBooster: false,
   priorityBooster: 0, // 0=BelowNormal, 1=Normal, 2=AboveNormal, 3=High
   startWithWindows: false,
+  notificationOnComplete: false,
   customEngines: [] as CustomEngineEntry[],
   disabledEnginePaths: [] as string[],
   projectEngineOverrides: {} as Record<string, string>,

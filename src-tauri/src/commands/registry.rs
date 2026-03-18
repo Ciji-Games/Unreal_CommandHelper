@@ -143,7 +143,10 @@ pub fn get_installed_engine_paths() -> Result<Vec<EngineEntry>, String> {
                 if let Ok(installed_dir) = sub_key.get_value::<String, _>("InstalledDirectory") {
                     let installed_dir = installed_dir.trim();
                     if !installed_dir.is_empty() && std::path::Path::new(installed_dir).exists() {
-                        let base = std::path::Path::new(installed_dir).join(bin64[0]).join(bin64[1]).join(bin64[2]);
+                        let base = std::path::Path::new(installed_dir)
+                            .join(bin64[0])
+                            .join(bin64[1])
+                            .join(bin64[2]);
                         // Prefer UE5 (UnrealEditor.exe), then UE4 (UE4Editor.exe)
                         let editor_path = base.join(UE5_EDITOR_EXE);
                         let editor_path = if editor_path.exists() {
