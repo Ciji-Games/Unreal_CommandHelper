@@ -7,6 +7,7 @@ use std::time::Instant;
 use tauri::AppHandle;
 
 use crate::commands::monitor;
+use crate::commands::registry;
 use crate::progress_parser::ToolMode;
 use crate::running_process;
 use crate::stream_processor::{self, process_streams};
@@ -38,8 +39,8 @@ fn find_unreal_build_tool(engine_root: &Path) -> Option<std::path::PathBuf> {
 
 /// Regenerate project files: delete Intermediate, DerivedDataCache, Build, .vs, Binaries,
 /// .sln, .vsconfig; then generate project files.
-/// Prefers UnrealBuildTool.exe directly (correct path for UE4: DotNET/UnrealBuildTool.exe)
-/// when engine path is available; falls back to UnrealVersionSelector -projectfiles.
+/// UE4: Prefers UnrealBuildTool.exe (correct path: DotNET/UnrealBuildTool.exe); falls back to UnrealVersionSelector.
+/// UE5: Prefers UnrealVersionSelector -projectfiles; falls back to UnrealBuildTool.exe.
 /// Optionally build the project (Development Editor) so VS and UE recognize it as compiled.
 #[tauri::command]
 pub async fn regenerate_project(
@@ -66,14 +67,23 @@ pub async fn regenerate_project(
         .unwrap_or("Unknown")
         .to_string();
 
-    // Prefer UnrealBuildTool.exe directly when we have engine path (UE4 uses
-    // DotNET/UnrealBuildTool.exe; UnrealVersionSelector may use wrong path)
+    // UE4: prefer UnrealBuildTool (UnrealVersionSelector may use wrong path).
+    // UE5: prefer UnrealVersionSelector; fall back to UnrealBuildTool.
     let ubt_path = (!engine_install_path.is_empty() && Path::new(&engine_install_path).exists())
         .then(|| editor_path_to_engine_root(Path::new(&engine_install_path)))
         .flatten()
         .and_then(|root| find_unreal_build_tool(&root));
 
-    if ubt_path.is_none() && !Path::new(&version_selector_path).exists() {
+    let is_ue4 = !engine_install_path.is_empty()
+        && registry::read_engine_version_from_path(engine_install_path.clone())
+            .ok()
+            .map(|v| v.starts_with("4."))
+            .unwrap_or(false);
+
+    let version_selector_exists = Path::new(&version_selector_path).exists();
+    let use_ubt = ubt_path.is_some() && (is_ue4 || !version_selector_exists);
+
+    if !use_ubt && !version_selector_exists {
         stream_processor::emit_log(
             &app,
             "[ERROR] UnrealVersionSelector.exe not found. Set engine path or UnrealVersionSelector in settings.",
@@ -88,7 +98,12 @@ pub async fn regenerate_project(
         );
     }
 
-    let ubt_path = ubt_path.map(|p| p.to_string_lossy().to_string());
+    let ubt_path_str = ubt_path.map(|p| p.to_string_lossy().to_string());
+    let effective_ubt = if use_ubt {
+        ubt_path_str.clone()
+    } else {
+        None
+    };
 
     let result = tokio::task::spawn_blocking({
         let app = app.clone();
@@ -96,7 +111,7 @@ pub async fn regenerate_project(
         let version_selector_path = version_selector_path.clone();
         let project_dir = project_dir.clone();
         let project_name = project_name.clone();
-        let ubt_path = ubt_path.clone();
+        let ubt_path = effective_ubt.clone();
         move || -> Result<(), String> {
             // 1. Delete folders
             let folders = [
