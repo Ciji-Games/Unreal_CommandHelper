@@ -3,6 +3,7 @@
  * Mirrors TabLauncher layout from Form1 (projectList1, projectList2).
  */
 
+import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useProjects } from '../hooks/useProjects';
 import { useEngines } from '../hooks/useEngines';
@@ -21,9 +22,28 @@ interface LauncherTabProps {
   onOpenSettings?: () => void;
 }
 
+interface SlnIdeResult {
+  ide: 'rider' | 'visual_studio' | 'unknown';
+  rider_path?: string;
+}
+
 export function LauncherTab({ onOpenSettings }: LauncherTabProps) {
   const { projects, addProject, removeProject, refresh, loading: projectsLoading } = useProjects();
   const { engines, loading: enginesLoading } = useEngines();
+  const [slnIde, setSlnIde] = useState<SlnIdeResult['ide']>('unknown');
+  const [riderPath, setRiderPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    invoke<SlnIdeResult>('detect_sln_ide')
+      .then((result) => {
+        setSlnIde(result.ide);
+        setRiderPath(result.rider_path ?? null);
+      })
+      .catch(() => {
+        setSlnIde('unknown');
+        setRiderPath(null);
+      });
+  }, []);
   const { settings } = useSettings();
   const { jobs } = useScheduledJobs();
   const { runJob, running: runJobRunning } = useRunScheduledJob();
@@ -114,6 +134,8 @@ export function LauncherTab({ onOpenSettings }: LauncherTabProps) {
                 project={effectiveProject}
                 onRemove={handleRemoveProject}
                 isCustomEngine={isCustomEngine}
+                slnIde={slnIde}
+                riderPath={riderPath}
               />
             );
           })}
