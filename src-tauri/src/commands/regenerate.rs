@@ -46,10 +46,12 @@ fn find_unreal_build_tool(engine_root: &Path) -> Option<std::path::PathBuf> {
 pub async fn regenerate_project(
     uproject_path: String,
     open_project_after: bool,
-    open_sln_after: bool,
+    open_ide_after: bool,
     build_after: bool,
     version_selector_path: String,
     engine_install_path: String,
+    preferred_ide_kind: Option<String>,
+    preferred_ide_exe_path: Option<String>,
     app: AppHandle,
 ) -> Result<(), String> {
     let uproj = Path::new(&uproject_path);
@@ -351,18 +353,13 @@ pub async fn regenerate_project(
         stream_processor::emit_log(&app, "Opening project...", Some("blue"));
         let _ = crate::commands::process::open_file(uproject_path.clone());
     }
-    if open_sln_after {
-        let sln_path = project_dir.join(format!("{}.sln", project_name.as_str()));
-        if sln_path.exists() {
-            stream_processor::emit_log(&app, "Opening solution...", Some("blue"));
-            let _ = crate::commands::process::open_file(sln_path.to_string_lossy().to_string());
-        } else {
-            stream_processor::emit_log(
-                &app,
-                "[ERROR] .sln file not found after generation.",
-                Some("red"),
-            );
-        }
+    if open_ide_after {
+        stream_processor::emit_log(&app, "Launching IDE...", Some("blue"));
+        let _ = crate::commands::process::launch_ide_for_project(
+            uproject_path.clone(),
+            preferred_ide_kind.unwrap_or_else(|| "unknown".to_string()),
+            preferred_ide_exe_path,
+        );
     }
 
     Ok(())

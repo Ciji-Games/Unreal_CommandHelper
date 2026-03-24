@@ -2,14 +2,14 @@
  * Settings panel - modal slide-over with General, Engine Management, Engine Association.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useSettings } from '../hooks/useSettings';
 import { useEngines } from '../hooks/useEngines';
 import { useProjects } from '../hooks/useProjects';
 import { Select } from './Select';
-import type { CustomEngineEntry } from '../types';
+import type { CustomEngineEntry, IdeCandidate } from '../types';
 import { getShortEngineVersion, getEngineLabel } from '../utils/project';
 
 interface SettingsPanelProps {
@@ -28,6 +28,48 @@ export function SettingsPanel({ open: isOpen, onClose }: SettingsPanelProps) {
   const [addEngineName, setAddEngineName] = useState('');
   const [addEngineError, setAddEngineError] = useState('');
   const [editingEngineId, setEditingEngineId] = useState<string | null>(null);
+  const [ideCandidates, setIdeCandidates] = useState<IdeCandidate[]>([]);
+  const [ideLoading, setIdeLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadIdeCandidates = async () => {
+      setIdeLoading(true);
+      try {
+        const [candidates, defaultIdeId] = await invoke<[IdeCandidate[], string | null]>(
+          'list_installed_ides'
+        );
+        if (cancelled) return;
+        setIdeCandidates(candidates);
+        const hasPreferred = !!settings.preferredIdeId &&
+          candidates.some((c) => c.id === settings.preferredIdeId);
+        if (!hasPreferred) {
+          const fallbackId = defaultIdeId ?? candidates[0]?.id ?? '';
+          if (fallbackId && fallbackId !== settings.preferredIdeId) {
+            await setSetting('preferredIdeId', fallbackId);
+          }
+        }
+      } catch (e) {
+        if (!cancelled) {
+          console.error('Failed to load installed IDEs:', e);
+          setIdeCandidates([]);
+        }
+      } finally {
+        if (!cancelled) setIdeLoading(false);
+      }
+    };
+    if (isOpen) {
+      loadIdeCandidates();
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, settings.preferredIdeId, setSetting]);
+
+  const ideOptions = useMemo(
+    () => ideCandidates.map((ide) => ({ value: ide.id, label: ide.label })),
+    [ideCandidates]
+  );
 
   const handleStartWithWindowsChange = useCallback(async () => {
     const next = !settings.startWithWindows;
@@ -172,7 +214,7 @@ export function SettingsPanel({ open: isOpen, onClose }: SettingsPanelProps) {
         aria-modal="true"
         aria-labelledby="settings-title"
       >
-        <div className="sticky top-0 bg-slate-900/95 backdrop-blur border-b border-slate-700 px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur border-b border-slate-700 px-6 py-4 flex items-center justify-between">
           <h2 id="settings-title" className="text-lg font-semibold text-slate-100">
             Settings
           </h2>
@@ -210,6 +252,19 @@ export function SettingsPanel({ open: isOpen, onClose }: SettingsPanelProps) {
               />
               <span className="text-slate-200">Notification on complete</span>
             </label>
+            <div className="space-y-1">
+              <label className="block text-sm text-slate-300">Preferred IDE</label>
+              <Select
+                value={settings.preferredIdeId}
+                onChange={(v) => setSetting('preferredIdeId', v)}
+                placeholder={ideLoading ? 'Detecting IDEs...' : 'No IDE detected'}
+                options={ideOptions}
+                className="min-w-[16rem]"
+              />
+              <p className="text-xs text-slate-500">
+                Used by Launch IDE actions. Rider opens `.uproject`, Visual Studio opens `.sln`.
+              </p>
+            </div>
           </section>
 
           {/* Engine Management */}

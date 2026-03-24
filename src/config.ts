@@ -18,6 +18,7 @@ export const STORE_KEYS = {
   PROJECT_ENGINE_OVERRIDES: 'projectEngineOverrides',
   DEFAULT_ENGINE_BY_VERSION: 'defaultEngineByVersion',
   NOTIFICATION_ON_COMPLETE: 'notificationOnComplete',
+  PREFERRED_IDE_ID: 'preferredIdeId',
 } as const;
 
 export const DEFAULT_SETTINGS = {
@@ -30,6 +31,7 @@ export const DEFAULT_SETTINGS = {
   disabledEnginePaths: [] as string[],
   projectEngineOverrides: {} as Record<string, string>,
   defaultEngineByVersion: {} as Record<string, string>,
+  preferredIdeId: '',
 };
 
 /** Link entry for the Links tab. icon is optional asset key or undefined for default. */

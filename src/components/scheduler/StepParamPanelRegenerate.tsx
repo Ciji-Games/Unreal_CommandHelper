@@ -1,6 +1,6 @@
 /**
  * Step param panel for Regenerate Project.
- * Params: project, buildAfter, openProjectAfter, openSlnAfter
+ * Params: project, buildAfter, openProjectAfter, openIdeAfter
  * (versionSelectorPath comes from settings at run time)
  */
 
@@ -21,7 +21,10 @@ export function StepParamPanelRegenerate({ value, onChange }: StepParamPanelRege
   const projectPath = (value.project as string) ?? '';
   const buildAfter = (value.buildAfter as boolean) ?? false;
   const openProjectAfter = (value.openProjectAfter as boolean) ?? false;
-  const openSlnAfter = (value.openSlnAfter as boolean) ?? false;
+  const openIdeAfter =
+    (value.openIdeAfter as boolean) ??
+    (value.openSlnAfter as boolean) ??
+    false;
 
   const cppProjects = projects.filter((p) => p.isCpp);
 
@@ -85,11 +88,11 @@ export function StepParamPanelRegenerate({ value, onChange }: StepParamPanelRege
         <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
           <input
             type="checkbox"
-            checked={openSlnAfter}
-            onChange={(e) => onChange({ ...value, openSlnAfter: e.target.checked })}
+            checked={openIdeAfter}
+            onChange={(e) => onChange({ ...value, openIdeAfter: e.target.checked })}
             className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
           />
-            Open .sln
+            Launch IDE
         </label>
       </div>
     </div>

@@ -22,6 +22,14 @@ export interface EngineEntry {
   id?: string;
 }
 
+export interface IdeCandidate {
+  id: string;
+  label: string;
+  kind: 'rider' | 'visual_studio' | 'unknown';
+  exe_path?: string;
+  detected: boolean;
+}
+
 /** Custom engine stored in user preferences */
 export interface CustomEngineEntry {
   id: string;

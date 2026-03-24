@@ -5,17 +5,20 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { useAppActivity } from './useAppActivity';
 
 export interface ShaderStatus {
   running: boolean;
   priority: string | null;
 }
 
-const POLL_INTERVAL_MS = 2000;
+const ACTIVE_POLL_INTERVAL_MS = 1000;
+const INACTIVE_POLL_INTERVAL_MS = 5000;
 
 export function useShaderBooster() {
   const [status, setStatus] = useState<ShaderStatus>({ running: false, priority: null });
   const [error, setError] = useState<string | null>(null);
+  const isAppActive = useAppActivity();
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -35,9 +38,12 @@ export function useShaderBooster() {
 
   useEffect(() => {
     refreshStatus();
-    const interval = setInterval(refreshStatus, POLL_INTERVAL_MS);
+    const interval = setInterval(
+      refreshStatus,
+      isAppActive ? ACTIVE_POLL_INTERVAL_MS : INACTIVE_POLL_INTERVAL_MS
+    );
     return () => clearInterval(interval);
-  }, [refreshStatus]);
+  }, [refreshStatus, isAppActive]);
 
   const setPriority = useCallback(async (priority: string) => {
     try {

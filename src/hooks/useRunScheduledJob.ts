@@ -9,6 +9,7 @@ import { useSettings } from './useSettings';
 import { useLog } from '../contexts/LogContext';
 import { useProgress } from '../contexts/ProgressContext';
 import type { ScheduledJob } from '../types';
+import type { IdeCandidate } from '../types';
 import { SCHEDULABLE_STEPS } from '../types';
 
 function getStepLabel(stepId: string): string {
@@ -45,6 +46,9 @@ export function useRunScheduledJob() {
       );
 
       let failed = false;
+      const [ideCandidates] = await invoke<[IdeCandidate[], string | null]>('list_installed_ides')
+        .catch(() => [[], null] as [IdeCandidate[], string | null]);
+      const selectedIde = ideCandidates.find((c) => c.id === settings.preferredIdeId);
       for (let i = 0; i < job.steps.length && !failed; i++) {
         if (stopRequestedRef.current) break;
         setCurrentStep(i);
@@ -57,7 +61,6 @@ export function useRunScheduledJob() {
           settings.projectEngineOverrides?.[projectPath] ||
           project?.engineInstallPath ||
           '';
-
         try {
           if (step.id === 'delete_hlod') {
             await invoke('run_map_command', {
@@ -192,10 +195,12 @@ export function useRunScheduledJob() {
             await invoke('regenerate_project', {
               uprojectPath: projectPath,
               openProjectAfter: params.openProjectAfter ?? false,
-              openSlnAfter: params.openSlnAfter ?? false,
+              openIdeAfter: params.openIdeAfter ?? params.openSlnAfter ?? false,
               buildAfter: params.buildAfter ?? false,
               versionSelectorPath: versionPath,
               engineInstallPath: enginePath,
+              preferredIdeKind: selectedIde?.kind ?? 'unknown',
+              preferredIdeExePath: selectedIde?.exe_path ?? null,
             });
           } else if (step.id === 'build_plugin') {
             await invoke('build_plugin', {
@@ -212,7 +217,11 @@ export function useRunScheduledJob() {
                 enginePath,
               });
             } else {
-              await invoke('open_file', { path: projectPath });
+              await invoke('launch_ide_for_project', {
+                uprojectPath: projectPath,
+                ideKind: selectedIde?.kind ?? 'unknown',
+                ideExePath: selectedIde?.exe_path ?? null,
+              });
             }
           } else if (step.id === 'movie_render_queue') {
             const mapPath = params.map as string;
@@ -245,6 +254,7 @@ export function useRunScheduledJob() {
       projects,
       settings.unrealVersionSelectorPath,
       settings.projectEngineOverrides,
+      settings.preferredIdeId,
       clearLog,
       startProgressForScheduler,
       setCurrentStep,

@@ -6,11 +6,14 @@
 import { useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useSettings } from '../hooks/useSettings';
+import { useAppActivity } from '../hooks/useAppActivity';
 
-const POLL_INTERVAL_MS = 2000;
+const ACTIVE_POLL_INTERVAL_MS = 1000;
+const INACTIVE_POLL_INTERVAL_MS = 5000;
 
 export function ShaderBoosterBackground() {
   const { settings } = useSettings();
+  const isAppActive = useAppActivity();
 
   const checkAndApply = useCallback(async () => {
     try {
@@ -32,9 +35,12 @@ export function ShaderBoosterBackground() {
 
   useEffect(() => {
     checkAndApply();
-    const interval = setInterval(checkAndApply, POLL_INTERVAL_MS);
+    const interval = setInterval(
+      checkAndApply,
+      isAppActive ? ACTIVE_POLL_INTERVAL_MS : INACTIVE_POLL_INTERVAL_MS
+    );
     return () => clearInterval(interval);
-  }, [checkAndApply]);
+  }, [checkAndApply, isAppActive]);
 
   return null;
 }

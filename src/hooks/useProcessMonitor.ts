@@ -6,11 +6,13 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { ProcessStatus } from '../types';
+import { useAppActivity } from './useAppActivity';
 
 export function useProcessMonitor(groupName: string, pollIntervalMs = 1000) {
   const [statuses, setStatuses] = useState<ProcessStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isAppActive = useAppActivity();
 
   useEffect(() => {
     let cancelled = false;
@@ -34,13 +36,20 @@ export function useProcessMonitor(groupName: string, pollIntervalMs = 1000) {
       }
     };
 
+    if (!isAppActive) {
+      setLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     checkProcesses();
     const interval = setInterval(checkProcesses, pollIntervalMs);
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [groupName, pollIntervalMs]);
+  }, [groupName, pollIntervalMs, isAppActive]);
 
   const runningProcesses = statuses.filter((s) => s.isRunning);
   const hasBlockingProcesses = runningProcesses.length > 0;

@@ -16,35 +16,25 @@ import { LauncherCard } from './LauncherCard';
 import { AddProjectButton } from './AddProjectButton';
 import { AddEngineCard } from './AddEngineCard';
 import { PinnedJobCard } from './PinnedJobCard';
-import type { ProjectInfo, EngineEntry } from '../types';
+import type { ProjectInfo, EngineEntry, IdeCandidate } from '../types';
 
 interface LauncherTabProps {
   onOpenSettings?: () => void;
 }
 
-interface SlnIdeResult {
-  ide: 'rider' | 'visual_studio' | 'unknown';
-  rider_path?: string;
-}
-
 export function LauncherTab({ onOpenSettings }: LauncherTabProps) {
   const { projects, addProject, removeProject, refresh, loading: projectsLoading } = useProjects();
   const { engines, loading: enginesLoading } = useEngines();
-  const [slnIde, setSlnIde] = useState<SlnIdeResult['ide']>('unknown');
-  const [riderPath, setRiderPath] = useState<string | null>(null);
+  const { settings } = useSettings();
+  const [ideCandidates, setIdeCandidates] = useState<IdeCandidate[]>([]);
 
   useEffect(() => {
-    invoke<SlnIdeResult>('detect_sln_ide')
-      .then((result) => {
-        setSlnIde(result.ide);
-        setRiderPath(result.rider_path ?? null);
-      })
-      .catch(() => {
-        setSlnIde('unknown');
-        setRiderPath(null);
-      });
+    invoke<[IdeCandidate[], string | null]>('list_installed_ides')
+      .then(([candidates]) => setIdeCandidates(candidates))
+      .catch(() => setIdeCandidates([]));
   }, []);
-  const { settings } = useSettings();
+
+  const selectedIde = ideCandidates.find((ide) => ide.id === settings.preferredIdeId);
   const { jobs } = useScheduledJobs();
   const { runJob, running: runJobRunning } = useRunScheduledJob();
   const umapMonitor = useProcessMonitor('umap');
@@ -134,8 +124,8 @@ export function LauncherTab({ onOpenSettings }: LauncherTabProps) {
                 project={effectiveProject}
                 onRemove={handleRemoveProject}
                 isCustomEngine={isCustomEngine}
-                slnIde={slnIde}
-                riderPath={riderPath}
+                ideKind={selectedIde?.kind}
+                ideExePath={selectedIde?.exe_path ?? null}
               />
             );
           })}
