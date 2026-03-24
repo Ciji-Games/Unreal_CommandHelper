@@ -8,7 +8,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { ProcessStatus } from '../types';
 import { useAppActivity } from './useAppActivity';
 
-export function useProcessMonitor(groupName: string, pollIntervalMs = 1000) {
+export function useProcessMonitor(groupName: string, pollIntervalMs = 1500) {
   const [statuses, setStatuses] = useState<ProcessStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
