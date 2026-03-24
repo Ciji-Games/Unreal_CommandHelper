@@ -92,6 +92,48 @@ pub fn open_uproject_with_rider(
     Ok(())
 }
 
+/// Launch preferred IDE for a C++ project.
+/// - rider => opens .uproject in Rider
+/// - visual_studio => opens .sln in selected devenv.exe (or shell association fallback)
+#[tauri::command]
+pub fn launch_ide_for_project(
+    uproject_path: String,
+    ide_kind: String,
+    ide_exe_path: Option<String>,
+) -> Result<(), String> {
+    let sln_path = if uproject_path.to_lowercase().ends_with(".uproject") {
+        uproject_path[..uproject_path.len() - 9].to_string() + ".sln"
+    } else {
+        uproject_path.clone() + ".sln"
+    };
+
+    #[cfg(windows)]
+    {
+        let kind = ide_kind.to_lowercase();
+        if kind == "rider" {
+            return open_uproject_with_rider(uproject_path, ide_exe_path);
+        }
+        if kind == "visual_studio" {
+            let vs_exe = ide_exe_path.filter(|p| std::path::Path::new(p).exists());
+            if let Some(exe) = vs_exe {
+                std::process::Command::new("cmd")
+                    .args(["/c", "start", "", &exe, &sln_path])
+                    .creation_flags(0x0800_0000u32)
+                    .spawn()
+                    .map_err(|e| e.to_string())?;
+                return Ok(());
+            }
+            return open_file(sln_path);
+        }
+        return open_file(sln_path);
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (uproject_path, ide_kind, ide_exe_path, sln_path);
+        Err("launch_ide_for_project is only supported on Windows".to_string())
+    }
+}
+
 #[cfg(windows)]
 fn find_rider_exe() -> Option<String> {
     use std::path::Path;
@@ -100,9 +142,20 @@ fn find_rider_exe() -> Option<String> {
     let program_files = std::env::var("PROGRAMFILES").ok()?;
     let program_files_x86 = std::env::var("PROGRAMFILES(X86)").unwrap_or_default();
 
-    // Toolbox: %LOCALAPPDATA%\Programs\JetBrains Rider 2024.1\bin\rider64.exe
-    // Or: %LOCALAPPDATA%\Programs\Rider\bin\rider64.exe
-    // Standard: %PROGRAMFILES%\JetBrains\Rider 2024.1\bin\rider64.exe
+    let toolbox_roots = [
+        format!("{}\\JetBrains\\Toolbox\\apps\\Rider", local_app_data),
+        format!("{}\\JetBrains\\Toolbox\\apps\\Rider\\ch-0", local_app_data),
+    ];
+    for root in &toolbox_roots {
+        let root_path = Path::new(root);
+        if !root_path.exists() {
+            continue;
+        }
+        if let Some(p) = scan_rider_under(root_path) {
+            return Some(p);
+        }
+    }
+
     let search_bases = [
         format!("{}\\Programs", local_app_data),
         format!("{}\\JetBrains", program_files),
@@ -121,13 +174,47 @@ fn find_rider_exe() -> Option<String> {
         for entry in entries.filter_map(Result::ok) {
             let name = entry.file_name().to_string_lossy().to_lowercase();
             let path = entry.path();
-            if name.starts_with("rider") && path.is_dir() {
-                let bin = path.join("bin").join("rider64.exe");
+            if name.contains("rider") && path.is_dir() {
+                let bin64 = path.join("bin").join("rider64.exe");
+                let bin = path.join("bin").join("rider.exe");
+                if bin64.exists() {
+                    return Some(bin64.to_string_lossy().to_string());
+                }
                 if bin.exists() {
                     return Some(bin.to_string_lossy().to_string());
                 }
             }
         }
+    }
+    None
+}
+
+#[cfg(windows)]
+fn scan_rider_under(root: &std::path::Path) -> Option<String> {
+    let mut stack = vec![root.to_path_buf()];
+    for _ in 0..4 {
+        let mut next = Vec::new();
+        while let Some(dir) = stack.pop() {
+            let bin64 = dir.join("bin").join("rider64.exe");
+            if bin64.exists() {
+                return Some(bin64.to_string_lossy().to_string());
+            }
+            let bin = dir.join("bin").join("rider.exe");
+            if bin.exists() {
+                return Some(bin.to_string_lossy().to_string());
+            }
+            let entries = match std::fs::read_dir(&dir) {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+            for entry in entries.filter_map(Result::ok) {
+                let path = entry.path();
+                if path.is_dir() {
+                    next.push(path);
+                }
+            }
+        }
+        stack = next;
     }
     None
 }

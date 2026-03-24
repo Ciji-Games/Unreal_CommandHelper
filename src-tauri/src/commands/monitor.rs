@@ -2,7 +2,7 @@
 //! Used by features like Regenerate Project (warns when UE/Rider/VS block proper generation).
 
 use serde::Serialize;
-use sysinfo::System;
+use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System};
 
 /// Result for a single monitored process/application
 #[derive(Clone, Debug, Serialize)]
@@ -91,8 +91,14 @@ pub fn get_process_status(group_name: String) -> Result<Vec<ProcessStatus>, Stri
     let definitions = process_groups::get_group(&group_name)
         .ok_or_else(|| format!("Unknown process group: {}", group_name))?;
 
-    let mut sys = System::new_all();
-    sys.refresh_all();
+    // Keep this call cheap: we only need process names + PIDs.
+    // `refresh_all()` refreshes lots of unrelated system data and can be expensive under load.
+    let mut sys = System::new();
+    sys.refresh_processes_specifics(
+        ProcessesToUpdate::All,
+        true,
+        ProcessRefreshKind::nothing(),
+    );
 
     let mut results = Vec::with_capacity(definitions.len());
     for def in definitions {

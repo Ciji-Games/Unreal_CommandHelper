@@ -17,18 +17,18 @@ function mapDisplayName(mapPath: string): string {
   return mapPath.split(/[/\\]/).pop() || mapPath;
 }
 
-type SlnIde = 'rider' | 'visual_studio' | 'unknown';
+type PreferredIdeKind = 'rider' | 'visual_studio' | 'unknown';
 
 interface LauncherCardProps {
   project: ProjectInfo;
   isEngine?: boolean;
   isCustomEngine?: boolean;
   onRemove?: (projectPath: string) => void;
-  slnIde?: SlnIde;
-  riderPath?: string | null;
+  ideKind?: PreferredIdeKind;
+  ideExePath?: string | null;
 }
 
-export function LauncherCard({ project, isEngine = false, isCustomEngine = false, onRemove, slnIde, riderPath }: LauncherCardProps) {
+export function LauncherCard({ project, isEngine = false, isCustomEngine = false, onRemove, ideKind, ideExePath }: LauncherCardProps) {
   const [thumbnailSrc, setThumbnailSrc] = useState<string>(ASSETS.ueIcon);
   const [launchDisabled, setLaunchDisabled] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -107,23 +107,18 @@ export function LauncherCard({ project, isEngine = false, isCustomEngine = false
     if (launchDisabled) return;
     try {
       startLaunchCooldown();
-      if (slnIde === 'rider') {
-        await invoke('open_uproject_with_rider', {
-          uprojectPath: project.projectPath,
-          riderPath: riderPath ?? null,
-        });
-      } else {
-        const slnPath = project.projectPath.replace(/\.uproject$/i, '.sln');
-        await invoke('open_file', { path: slnPath });
-      }
+      await invoke('launch_ide_for_project', {
+        uprojectPath: project.projectPath,
+        ideKind: ideKind ?? 'unknown',
+        ideExePath: ideExePath ?? null,
+      });
     } catch (e) {
       console.error('Failed to launch IDE:', e);
       setLaunchDisabled(false);
     }
   };
 
-  const ideButtonLabel =
-    slnIde === 'rider' ? 'Open Rider' : slnIde === 'visual_studio' ? 'Open V.S.' : 'Open .sln';
+  const ideButtonLabel = 'Launch IDE';
 
   const handleDelete = () => {
     onRemove?.(project.projectPath);
@@ -264,9 +259,9 @@ export function LauncherCard({ project, isEngine = false, isCustomEngine = false
               disabled={launchDisabled}
               className="w-full px-2 py-1.5 text-xs font-medium rounded-md bg-slate-600/80 hover:bg-slate-500/80 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-600/80"
               title={
-                slnIde === 'rider'
+                ideKind === 'rider'
                   ? 'Opens the project in Rider (.uproject)'
-                  : slnIde === 'visual_studio'
+                  : ideKind === 'visual_studio'
                     ? 'Opens the .sln file in Visual Studio'
                     : 'Opens the .sln file in the default IDE'
               }

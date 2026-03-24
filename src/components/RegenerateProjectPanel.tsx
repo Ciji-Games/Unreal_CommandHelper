@@ -14,6 +14,7 @@ import { useSettings } from '../hooks/useSettings';
 import { useLog } from '../contexts/LogContext';
 import { useProgress } from '../contexts/ProgressContext';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
+import type { IdeCandidate } from '../types';
 
 const REGENERATE_PROCESS_GROUP = 'regenerate';
 
@@ -28,8 +29,9 @@ export function RegenerateProjectPanel() {
   const [versionSelectorPath, setVersionSelectorPath] = useState<string | null>(null);
   const [buildAfter, setBuildAfter] = useState(false);
   const [openProjectAfter, setOpenProjectAfter] = useState(false);
-  const [openSlnAfter, setOpenSlnAfter] = useState(false);
+  const [openIdeAfter, setOpenIdeAfter] = useState(false);
   const [running, setRunning] = useState(false);
+  const [ideCandidates, setIdeCandidates] = useState<IdeCandidate[]>([]);
 
   useEffect(() => {
     const loadPath = async () => {
@@ -47,6 +49,12 @@ export function RegenerateProjectPanel() {
     };
     loadPath();
   }, [settings.unrealVersionSelectorPath]);
+
+  useEffect(() => {
+    invoke<[IdeCandidate[], string | null]>('list_installed_ides')
+      .then(([candidates]) => setIdeCandidates(candidates))
+      .catch(() => setIdeCandidates([]));
+  }, []);
 
   const cppProjects = projects.filter((p) => p.isCpp);
 
@@ -93,6 +101,7 @@ export function RegenerateProjectPanel() {
       selectedProject && settings.projectEngineOverrides
         ? settings.projectEngineOverrides[selectedProject.projectPath] ?? selectedProject.engineInstallPath ?? ''
         : selectedProject?.engineInstallPath ?? '';
+    const selectedIde = ideCandidates.find((c) => c.id === settings.preferredIdeId);
 
     clearLog();
     setRunning(true);
@@ -101,10 +110,12 @@ export function RegenerateProjectPanel() {
       await invoke('regenerate_project', {
         uprojectPath: selectedPath,
         openProjectAfter,
-        openSlnAfter,
+        openIdeAfter,
         buildAfter,
         versionSelectorPath: versionPath,
         engineInstallPath: enginePath,
+        preferredIdeKind: selectedIde?.kind ?? 'unknown',
+        preferredIdeExePath: selectedIde?.exe_path ?? null,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -172,11 +183,11 @@ export function RegenerateProjectPanel() {
           <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
             <input
               type="checkbox"
-              checked={openSlnAfter}
-              onChange={(e) => setOpenSlnAfter(e.target.checked)}
+              checked={openIdeAfter}
+              onChange={(e) => setOpenIdeAfter(e.target.checked)}
               className="rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500/50"
             />
-            Open .sln
+            Launch IDE
           </label>
         </div>
 

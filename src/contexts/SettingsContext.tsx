@@ -19,6 +19,7 @@ export interface AppSettings {
   disabledEnginePaths: string[];
   projectEngineOverrides: Record<string, string>;
   defaultEngineByVersion: Record<string, string>;
+  preferredIdeId: string;
 }
 
 interface SettingsContextValue {
@@ -41,6 +42,7 @@ const storeKeyMap: Record<keyof AppSettings, string> = {
   disabledEnginePaths: STORE_KEYS.DISABLED_ENGINE_PATHS,
   projectEngineOverrides: STORE_KEYS.PROJECT_ENGINE_OVERRIDES,
   defaultEngineByVersion: STORE_KEYS.DEFAULT_ENGINE_BY_VERSION,
+  preferredIdeId: STORE_KEYS.PREFERRED_IDE_ID,
 };
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
@@ -50,6 +52,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     disabledEnginePaths: [],
     projectEngineOverrides: {},
     defaultEngineByVersion: {},
+    preferredIdeId: '',
   });
   const [loading, setLoading] = useState(true);
 
@@ -65,6 +68,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       const disabledEnginePaths = await store.get<string[]>(STORE_KEYS.DISABLED_ENGINE_PATHS);
       const projectEngineOverrides = await store.get<Record<string, string>>(STORE_KEYS.PROJECT_ENGINE_OVERRIDES);
       const defaultEngineByVersion = await store.get<Record<string, string>>(STORE_KEYS.DEFAULT_ENGINE_BY_VERSION);
+      const preferredIdeId = await store.get<string>(STORE_KEYS.PREFERRED_IDE_ID);
 
       setSettingsState({
         unrealVersionSelectorPath: path ?? DEFAULT_SETTINGS.unrealVersionSelectorPath,
@@ -76,6 +80,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         disabledEnginePaths: disabledEnginePaths ?? DEFAULT_SETTINGS.disabledEnginePaths,
         projectEngineOverrides: projectEngineOverrides ?? DEFAULT_SETTINGS.projectEngineOverrides,
         defaultEngineByVersion: defaultEngineByVersion ?? DEFAULT_SETTINGS.defaultEngineByVersion,
+        preferredIdeId: preferredIdeId ?? DEFAULT_SETTINGS.preferredIdeId,
       });
     } finally {
       setLoading(false);
