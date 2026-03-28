@@ -26,7 +26,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadProjects = useCallback(async () => {
+  const loadProjects = useCallback(async (deepRefresh = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -36,22 +36,35 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
         setProjects([]);
         return;
       }
+
       const paths = stored.map((p) => p.projectPath);
       const existingPaths = await invoke<string[]>('filter_existing_paths', { paths });
       const existingSet = new Set(existingPaths);
       const valid = stored.filter((p) => existingSet.has(p.projectPath));
+
       if (valid.length < stored.length) {
         await store.set(STORE_KEYS.PROJECTS, valid);
       }
+
+      if (!deepRefresh) {
+        setProjects(valid);
+        return;
+      }
+
       // Re-validate engine paths: if engine no longer exists on disk, re-analyse project
-      const enginePathsToCheck = valid
-        .filter((p) => p.engineInstallPath && p.engineInstallPath !== 'Unknown')
-        .map((p) => p.engineInstallPath);
+      const enginePathsToCheck = [...new Set(
+        valid
+          .filter((p) => p.engineInstallPath && p.engineInstallPath !== 'Unknown')
+          .map((p) => p.engineInstallPath)
+      )];
+
       const existingEnginePaths =
         enginePathsToCheck.length > 0
           ? await invoke<string[]>('filter_existing_paths', { paths: enginePathsToCheck })
           : [];
+
       const existingEngineSet = new Set(existingEnginePaths);
+
       const withValidEngines = await Promise.all(
         valid.map(async (p) => {
           if (
@@ -60,10 +73,9 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
             !existingEngineSet.has(p.engineInstallPath)
           ) {
             try {
-              const fresh = await invoke<ProjectInfo>('analyse_uproject', {
+              return await invoke<ProjectInfo>('analyse_uproject', {
                 path: p.projectPath,
               });
-              return fresh;
             } catch {
               return { ...p, engineInstallPath: 'Unknown' };
             }
@@ -71,15 +83,17 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
           return p;
         })
       );
+
       const updated = await Promise.all(
         withValidEngines.map(async (p) => {
           try {
             const freshMaps = await invoke<string[]>('scan_project_maps', {
               projectPath: p.projectPath,
             });
+            const currentMaps = p.maps ?? [];
             const mapsChanged =
-              freshMaps.length !== p.maps.length ||
-              freshMaps.some((m, i) => m !== p.maps[i]);
+              freshMaps.length !== currentMaps.length ||
+              freshMaps.some((m, i) => m !== currentMaps[i]);
             if (mapsChanged) {
               return { ...p, maps: freshMaps };
             }
@@ -89,15 +103,18 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
           return p;
         })
       );
+
       const anyMapsChanged = updated.some((p, i) => p.maps !== withValidEngines[i].maps);
       const anyEngineChanged = withValidEngines.some(
         (p, i) =>
           p.engineInstallPath !== valid[i].engineInstallPath ||
           p.engineVersion !== valid[i].engineVersion
       );
+
       if (anyMapsChanged || anyEngineChanged) {
         await store.set(STORE_KEYS.PROJECTS, updated);
       }
+
       setProjects(updated);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load projects');
@@ -107,9 +124,13 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Load projects once when app starts (provider mounts and never unmounts)
+  // Load projects once when app starts (fast path: keep startup cheap)
   useEffect(() => {
-    loadProjects();
+    loadProjects(false);
+  }, [loadProjects]);
+
+  const refreshProjects = useCallback(async () => {
+    await loadProjects(true);
   }, [loadProjects]);
 
   const addProject = useCallback(async (project: ProjectInfo) => {
@@ -153,7 +174,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
         addProject,
         removeProject,
         updateProject,
-        refresh: loadProjects,
+        refresh: refreshProjects,
       }}
     >
       {children}

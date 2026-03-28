@@ -59,16 +59,29 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const loadSettings = useCallback(async () => {
     try {
       const store = await getStore();
-      const path = await store.get<string>(STORE_KEYS.UNREAL_VERSION_SELECTOR_PATH);
-      const autoSwitch = await store.get<boolean>(STORE_KEYS.AUTO_SWITCH_BOOSTER);
-      const priority = await store.get<number>(STORE_KEYS.PRIORITY_BOOSTER);
-      const startWithWindows = await store.get<boolean>(STORE_KEYS.START_WITH_WINDOWS);
-      const notificationOnComplete = await store.get<boolean>(STORE_KEYS.NOTIFICATION_ON_COMPLETE);
-      const customEngines = await store.get<CustomEngineEntry[]>(STORE_KEYS.CUSTOM_ENGINES);
-      const disabledEnginePaths = await store.get<string[]>(STORE_KEYS.DISABLED_ENGINE_PATHS);
-      const projectEngineOverrides = await store.get<Record<string, string>>(STORE_KEYS.PROJECT_ENGINE_OVERRIDES);
-      const defaultEngineByVersion = await store.get<Record<string, string>>(STORE_KEYS.DEFAULT_ENGINE_BY_VERSION);
-      const preferredIdeId = await store.get<string>(STORE_KEYS.PREFERRED_IDE_ID);
+      const [
+        path,
+        autoSwitch,
+        priority,
+        startWithWindows,
+        notificationOnComplete,
+        customEngines,
+        disabledEnginePaths,
+        projectEngineOverrides,
+        defaultEngineByVersion,
+        preferredIdeId,
+      ] = await Promise.all([
+        store.get<string>(STORE_KEYS.UNREAL_VERSION_SELECTOR_PATH),
+        store.get<boolean>(STORE_KEYS.AUTO_SWITCH_BOOSTER),
+        store.get<number>(STORE_KEYS.PRIORITY_BOOSTER),
+        store.get<boolean>(STORE_KEYS.START_WITH_WINDOWS),
+        store.get<boolean>(STORE_KEYS.NOTIFICATION_ON_COMPLETE),
+        store.get<CustomEngineEntry[]>(STORE_KEYS.CUSTOM_ENGINES),
+        store.get<string[]>(STORE_KEYS.DISABLED_ENGINE_PATHS),
+        store.get<Record<string, string>>(STORE_KEYS.PROJECT_ENGINE_OVERRIDES),
+        store.get<Record<string, string>>(STORE_KEYS.DEFAULT_ENGINE_BY_VERSION),
+        store.get<string>(STORE_KEYS.PREFERRED_IDE_ID),
+      ]);
 
       setSettingsState({
         unrealVersionSelectorPath: path ?? DEFAULT_SETTINGS.unrealVersionSelectorPath,

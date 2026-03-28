@@ -27,12 +27,30 @@ export function LauncherTab({ onOpenSettings }: LauncherTabProps) {
   const { engines, loading: enginesLoading } = useEngines();
   const { settings } = useSettings();
   const [ideCandidates, setIdeCandidates] = useState<IdeCandidate[]>([]);
+  const hasCppProjects = projects.some((p) => p.isCpp);
 
   useEffect(() => {
-    invoke<[IdeCandidate[], string | null]>('list_installed_ides')
-      .then(([candidates]) => setIdeCandidates(candidates))
-      .catch(() => setIdeCandidates([]));
-  }, []);
+    if (!hasCppProjects) {
+      setIdeCandidates([]);
+      return;
+    }
+
+    let canceled = false;
+    const timer = window.setTimeout(() => {
+      invoke<[IdeCandidate[], string | null]>('list_installed_ides')
+        .then(([candidates]) => {
+          if (!canceled) setIdeCandidates(candidates);
+        })
+        .catch(() => {
+          if (!canceled) setIdeCandidates([]);
+        });
+    }, 250);
+
+    return () => {
+      canceled = true;
+      window.clearTimeout(timer);
+    };
+  }, [hasCppProjects]);
 
   const selectedIde = ideCandidates.find((ide) => ide.id === settings.preferredIdeId);
   const { jobs } = useScheduledJobs();

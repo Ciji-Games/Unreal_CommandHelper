@@ -21,7 +21,7 @@ interface EnginesContextValue {
 const EnginesContext = createContext<EnginesContextValue | null>(null);
 
 export function EnginesProvider({ children }: { children: React.ReactNode }) {
-  const { settings } = useSettings();
+  const { settings, loading: settingsLoading } = useSettings();
   const [engines, setEngines] = useState<EngineEntry[]>([]);
   const [allEngines, setAllEngines] = useState<EngineEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,8 +62,9 @@ export function EnginesProvider({ children }: { children: React.ReactNode }) {
   }, [settings.customEngines, settings.disabledEnginePaths]);
 
   useEffect(() => {
+    if (settingsLoading) return;
     loadEngines();
-  }, [loadEngines]);
+  }, [loadEngines, settingsLoading]);
 
   return (
     <EnginesContext.Provider value={{ engines, allEngines, loading, refresh: loadEngines }}>
