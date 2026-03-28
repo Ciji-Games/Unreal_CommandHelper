@@ -32,7 +32,35 @@ export function LauncherCard({ project, isEngine = false, isCustomEngine = false
   const [thumbnailSrc, setThumbnailSrc] = useState<string>(ASSETS.ueIcon);
   const [launchDisabled, setLaunchDisabled] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [thumbnailReady, setThumbnailReady] = useState(isEngine);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isEngine) {
+      setThumbnailReady(true);
+      return;
+    }
+
+    setThumbnailReady(false);
+    if (!('IntersectionObserver' in window) || !cardRef.current) {
+      setThumbnailReady(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setThumbnailReady(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+
+    observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, [isEngine, project.projectPath]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -47,7 +75,7 @@ export function LauncherCard({ project, isEngine = false, isCustomEngine = false
   }, [dropdownOpen]);
 
   useEffect(() => {
-    if (isEngine) {
+    if (isEngine || !thumbnailReady) {
       setThumbnailSrc(ASSETS.ueIcon);
       return;
     }
@@ -64,7 +92,7 @@ export function LauncherCard({ project, isEngine = false, isCustomEngine = false
         }
       })
       .catch(() => setThumbnailSrc(ASSETS.ueIcon));
-  }, [project.projectPath, isEngine]);
+  }, [project.projectPath, isEngine, thumbnailReady]);
 
   const startLaunchCooldown = () => {
     setLaunchDisabled(true);
@@ -154,7 +182,7 @@ export function LauncherCard({ project, isEngine = false, isCustomEngine = false
   }
 
   return (
-    <div className="relative flex flex-col rounded-lg border border-slate-600/60 bg-slate-800/50 w-36 shrink-0 shadow-sm hover:border-slate-500/50 transition-colors">
+    <div ref={cardRef} className="relative flex flex-col rounded-lg border border-slate-600/60 bg-slate-800/50 w-36 shrink-0 shadow-sm hover:border-slate-500/50 transition-colors">
       {/* Card header: square thumbnail (1:1) + overlays */}
       <div className="relative aspect-square w-full bg-slate-700/50 flex items-center justify-center overflow-hidden rounded-t-lg">
         <img
