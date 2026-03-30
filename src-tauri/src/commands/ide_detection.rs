@@ -1,6 +1,7 @@
 //! Detect which IDE opens .sln files (Rider vs Visual Studio) via Windows registry.
 
 use serde::Serialize;
+use tauri::async_runtime::spawn_blocking;
 
 #[derive(Serialize)]
 pub struct SlnIdeResult {
@@ -23,7 +24,13 @@ pub struct IdeCandidate {
 /// Returns "rider", "visual_studio", or "unknown".
 /// When Rider is detected, also returns the rider64.exe path from the registry.
 #[tauri::command]
-pub fn detect_sln_ide() -> Result<SlnIdeResult, String> {
+pub async fn detect_sln_ide() -> Result<SlnIdeResult, String> {
+    spawn_blocking(detect_sln_ide_impl)
+        .await
+        .map_err(|e| format!("IDE detection task failed: {}", e))?
+}
+
+fn detect_sln_ide_impl() -> Result<SlnIdeResult, String> {
     #[cfg(not(windows))]
     {
         let _ = ();
@@ -86,7 +93,13 @@ pub fn detect_sln_ide() -> Result<SlnIdeResult, String> {
 /// Detect installed IDE candidates (Rider + Visual Studio instances).
 /// Also returns a default IDE id inferred from current .sln association.
 #[tauri::command]
-pub fn list_installed_ides() -> Result<(Vec<IdeCandidate>, Option<String>), String> {
+pub async fn list_installed_ides() -> Result<(Vec<IdeCandidate>, Option<String>), String> {
+    spawn_blocking(list_installed_ides_impl)
+        .await
+        .map_err(|e| format!("IDE discovery task failed: {}", e))?
+}
+
+fn list_installed_ides_impl() -> Result<(Vec<IdeCandidate>, Option<String>), String> {
     #[cfg(not(windows))]
     {
         let _ = ();
@@ -106,7 +119,7 @@ pub fn list_installed_ides() -> Result<(Vec<IdeCandidate>, Option<String>), Stri
                 detected: true,
             });
         }
-        if let Ok(sln_ide) = detect_sln_ide() {
+        if let Ok(sln_ide) = detect_sln_ide_impl() {
             if sln_ide.ide == "rider" {
                 if let Some(path) = sln_ide.rider_path {
                     let path_lc = path.to_lowercase();
@@ -133,7 +146,7 @@ pub fn list_installed_ides() -> Result<(Vec<IdeCandidate>, Option<String>), Stri
 
 #[cfg(windows)]
 fn detect_default_ide_id(candidates: &[IdeCandidate]) -> Option<String> {
-    let detected = detect_sln_ide().ok()?;
+    let detected = detect_sln_ide_impl().ok()?;
     let path = detected.rider_path.map(|p| p.to_lowercase());
     match detected.ide.as_str() {
         "rider" => candidates

@@ -11,6 +11,7 @@ import { ProgressProvider } from './contexts/ProgressContext';
 import { ProjectsProvider } from './contexts/ProjectsContext';
 import { EnginesProvider } from './contexts/EnginesContext';
 import { SettingsProvider } from './contexts/SettingsContext';
+import IdeProvider from './contexts/IdeContext';
 import { SettingsPanel } from './components/SettingsPanel';
 
 const TAB_ICONS = {
@@ -49,6 +50,7 @@ function App() {
 
   return (
     <SettingsProvider>
+    <IdeProvider>
     <ProjectsProvider>
       <EnginesProvider>
       <LogProvider>
@@ -131,6 +133,7 @@ function App() {
       </LogProvider>
       </EnginesProvider>
     </ProjectsProvider>
+    </IdeProvider>
     </SettingsProvider>
   );
 }

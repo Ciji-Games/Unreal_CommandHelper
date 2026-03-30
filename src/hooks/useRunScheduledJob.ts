@@ -6,6 +6,7 @@ import { useCallback, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useProjects } from './useProjects';
 import { useSettings } from './useSettings';
+import useIde from './useIde';
 import { useLog } from '../contexts/LogContext';
 import { useProgress } from '../contexts/ProgressContext';
 import type { ScheduledJob } from '../types';
@@ -23,6 +24,7 @@ export interface RunJobOptions {
 export function useRunScheduledJob() {
   const { projects } = useProjects();
   const { settings } = useSettings();
+  const { getCandidates } = useIde();
   const { clearLog } = useLog();
   const {
     startProgressForScheduler,
@@ -46,9 +48,8 @@ export function useRunScheduledJob() {
       );
 
       let failed = false;
-      const [ideCandidates] = await invoke<[IdeCandidate[], string | null]>('list_installed_ides')
-        .catch(() => [[], null] as [IdeCandidate[], string | null]);
-      const selectedIde = ideCandidates.find((c) => c.id === settings.preferredIdeId);
+      const ideCandidates = await getCandidates().catch(() => []);
+      const selectedIde = ideCandidates.find((c: IdeCandidate) => c.id === settings.preferredIdeId);
       for (let i = 0; i < job.steps.length && !failed; i++) {
         if (stopRequestedRef.current) break;
         setCurrentStep(i);
@@ -255,6 +256,7 @@ export function useRunScheduledJob() {
       settings.unrealVersionSelectorPath,
       settings.projectEngineOverrides,
       settings.preferredIdeId,
+      getCandidates,
       clearLog,
       startProgressForScheduler,
       setCurrentStep,

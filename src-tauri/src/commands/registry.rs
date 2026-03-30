@@ -2,6 +2,7 @@
 //! Step 5: Implement Windows registry & engine discovery
 
 use std::path::Path;
+use tauri::async_runtime::spawn_blocking;
 
 #[cfg(windows)]
 use winreg::enums::{HKEY_CLASSES_ROOT, HKEY_LOCAL_MACHINE};
@@ -119,7 +120,13 @@ pub fn get_unreal_version_selector_path() -> Result<Option<String>, String> {
 /// Each subkey has InstalledDirectory → e.g. C:\Program Files\Epic Games\UE_5.4 or UE_4.27
 /// Editor exe: UnrealEditor.exe (UE5) or UE4Editor.exe (UE4)
 #[tauri::command]
-pub fn get_installed_engine_paths() -> Result<Vec<EngineEntry>, String> {
+pub async fn get_installed_engine_paths() -> Result<Vec<EngineEntry>, String> {
+    spawn_blocking(discover_installed_engine_paths)
+        .await
+        .map_err(|e| format!("Engine discovery task failed: {}", e))?
+}
+
+pub(crate) fn discover_installed_engine_paths() -> Result<Vec<EngineEntry>, String> {
     #[cfg(not(windows))]
     {
         let _ = ();

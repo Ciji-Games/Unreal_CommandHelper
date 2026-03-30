@@ -3,11 +3,12 @@
  * Mirrors TabLauncher layout from Form1 (projectList1, projectList2).
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useProjects } from '../hooks/useProjects';
 import { useEngines } from '../hooks/useEngines';
 import { useSettings } from '../hooks/useSettings';
+import { useIde } from '../hooks/useIde';
 import { useScheduledJobs } from '../hooks/useScheduledJobs';
 import { useRunScheduledJob } from '../hooks/useRunScheduledJob';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
@@ -16,41 +17,34 @@ import { LauncherCard } from './LauncherCard';
 import { AddProjectButton } from './AddProjectButton';
 import { AddEngineCard } from './AddEngineCard';
 import { PinnedJobCard } from './PinnedJobCard';
-import type { ProjectInfo, EngineEntry, IdeCandidate } from '../types';
+import type { ProjectInfo, EngineEntry } from '../types';
 
 interface LauncherTabProps {
   onOpenSettings?: () => void;
 }
 
 export function LauncherTab({ onOpenSettings }: LauncherTabProps) {
-  const { projects, addProject, removeProject, refresh, loading: projectsLoading } = useProjects();
+  const {
+    projects,
+    addProject,
+    removeProject,
+    refresh,
+    loading: projectsLoading,
+    refreshing: projectsRefreshing,
+    refreshProgress,
+  } = useProjects();
   const { engines, loading: enginesLoading } = useEngines();
   const { settings } = useSettings();
-  const [ideCandidates, setIdeCandidates] = useState<IdeCandidate[]>([]);
+  const { candidates: ideCandidates, ensureLoaded: ensureIdeLoaded } = useIde();
   const hasCppProjects = projects.some((p) => p.isCpp);
 
   useEffect(() => {
-    if (!hasCppProjects) {
-      setIdeCandidates([]);
-      return;
-    }
-
-    let canceled = false;
+    if (!hasCppProjects) return;
     const timer = window.setTimeout(() => {
-      invoke<[IdeCandidate[], string | null]>('list_installed_ides')
-        .then(([candidates]) => {
-          if (!canceled) setIdeCandidates(candidates);
-        })
-        .catch(() => {
-          if (!canceled) setIdeCandidates([]);
-        });
+      void ensureIdeLoaded();
     }, 250);
-
-    return () => {
-      canceled = true;
-      window.clearTimeout(timer);
-    };
-  }, [hasCppProjects]);
+    return () => window.clearTimeout(timer);
+  }, [hasCppProjects, ensureIdeLoaded]);
 
   const selectedIde = ideCandidates.find((ide) => ide.id === settings.preferredIdeId);
   const { jobs } = useScheduledJobs();
@@ -123,13 +117,26 @@ export function LauncherTab({ onOpenSettings }: LauncherTabProps) {
           <button
             type="button"
             onClick={refresh}
-            disabled={projectsLoading}
+            disabled={projectsLoading || projectsRefreshing}
             className="rounded-md px-2.5 py-1 text-xs font-medium bg-slate-700/60 text-slate-300 hover:bg-slate-600/60 hover:text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-slate-600/50"
-            title="Re-scan projects (remove deleted, refresh maps)"
+            title="Re-scan projects in background (remove deleted, refresh maps)"
           >
-            {projectsLoading ? 'Scanning…' : 'Re-scan'}
+            {projectsLoading
+              ? 'Loading...'
+              : projectsRefreshing
+                ? `Scanning ${refreshProgress.completed}/${refreshProgress.total || projects.length}`
+                : 'Re-scan'}
           </button>
         </div>
+        {projectsRefreshing && (
+          <p className="text-xs text-slate-400">
+            Background scan running
+            {refreshProgress.currentProjectPath
+              ? ` (${refreshProgress.currentProjectPath.split(/[/\\]/).pop() ?? 'project'})`
+              : ''}
+            .
+          </p>
+        )}
         <div className="flex flex-wrap gap-3">
           {projects.map((p) => {
             const effectiveEnginePath = settings.projectEngineOverrides?.[p.projectPath] ?? p.engineInstallPath;
