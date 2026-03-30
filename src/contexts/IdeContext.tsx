@@ -19,10 +19,11 @@ export function IdeProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const loadedRef = useRef(false);
   const inFlightRef = useRef<Promise<IdeCandidate[]> | null>(null);
+  const candidatesRef = useRef<IdeCandidate[]>([]);
 
   const getCandidates = useCallback(async (forceRefresh = false): Promise<IdeCandidate[]> => {
     if (!forceRefresh && loadedRef.current) {
-      return candidates;
+      return candidatesRef.current;
     }
 
     if (inFlightRef.current) {
@@ -35,11 +36,13 @@ export function IdeProvider({ children }: { children: React.ReactNode }) {
       try {
         const [nextCandidates] = await invoke<[IdeCandidate[], string | null]>('list_installed_ides');
         loadedRef.current = true;
+        candidatesRef.current = nextCandidates;
         setCandidates(nextCandidates);
         return nextCandidates;
       } catch (e) {
         const message = e instanceof Error ? e.message : 'Failed to detect IDEs';
         setError(message);
+        candidatesRef.current = [];
         setCandidates([]);
         return [];
       } finally {
@@ -50,7 +53,7 @@ export function IdeProvider({ children }: { children: React.ReactNode }) {
 
     inFlightRef.current = request;
     return request;
-  }, [candidates]);
+  }, []);
 
   const ensureLoaded = useCallback(async () => getCandidates(false), [getCandidates]);
   const refresh = useCallback(async () => getCandidates(true), [getCandidates]);
