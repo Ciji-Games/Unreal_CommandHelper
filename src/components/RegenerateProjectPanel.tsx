@@ -11,6 +11,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { useProjects } from '../hooks/useProjects';
 import { getProjectDisplayLabel } from '../utils/project';
 import { useSettings } from '../hooks/useSettings';
+import useIde from '../hooks/useIde';
 import { useLog } from '../contexts/LogContext';
 import { useProgress } from '../contexts/ProgressContext';
 import { useProcessMonitor } from '../hooks/useProcessMonitor';
@@ -21,6 +22,7 @@ const REGENERATE_PROCESS_GROUP = 'regenerate';
 export function RegenerateProjectPanel() {
   const { projects, addProject } = useProjects();
   const { settings } = useSettings();
+  const { candidates: ideCandidates, ensureLoaded: ensureIdeLoaded } = useIde();
   const { clearLog } = useLog();
   const { startProgress, finishProgress } = useProgress();
   const { runningProcesses: blockingProcesses, hasBlockingProcesses } =
@@ -31,7 +33,6 @@ export function RegenerateProjectPanel() {
   const [openProjectAfter, setOpenProjectAfter] = useState(false);
   const [openIdeAfter, setOpenIdeAfter] = useState(false);
   const [running, setRunning] = useState(false);
-  const [ideCandidates, setIdeCandidates] = useState<IdeCandidate[]>([]);
 
   useEffect(() => {
     const loadPath = async () => {
@@ -51,10 +52,8 @@ export function RegenerateProjectPanel() {
   }, [settings.unrealVersionSelectorPath]);
 
   useEffect(() => {
-    invoke<[IdeCandidate[], string | null]>('list_installed_ides')
-      .then(([candidates]) => setIdeCandidates(candidates))
-      .catch(() => setIdeCandidates([]));
-  }, []);
+    void ensureIdeLoaded();
+  }, [ensureIdeLoaded]);
 
   const cppProjects = projects.filter((p) => p.isCpp);
 
@@ -101,7 +100,7 @@ export function RegenerateProjectPanel() {
       selectedProject && settings.projectEngineOverrides
         ? settings.projectEngineOverrides[selectedProject.projectPath] ?? selectedProject.engineInstallPath ?? ''
         : selectedProject?.engineInstallPath ?? '';
-    const selectedIde = ideCandidates.find((c) => c.id === settings.preferredIdeId);
+    const selectedIde = ideCandidates.find((c: IdeCandidate) => c.id === settings.preferredIdeId);
 
     clearLog();
     setRunning(true);

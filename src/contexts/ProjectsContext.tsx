@@ -12,6 +12,12 @@ import { STORE_KEYS } from '../config';
 interface ProjectsContextValue {
   projects: ProjectInfo[];
   loading: boolean;
+  refreshing: boolean;
+  refreshProgress: {
+    completed: number;
+    total: number;
+    currentProjectPath: string | null;
+  };
   error: string | null;
   addProject: (project: ProjectInfo) => Promise<void>;
   removeProject: (projectPath: string) => Promise<void>;
@@ -24,11 +30,22 @@ const ProjectsContext = createContext<ProjectsContextValue | null>(null);
 export function ProjectsProvider({ children }: { children: React.ReactNode }) {
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshProgress, setRefreshProgress] = useState({
+    completed: 0,
+    total: 0,
+    currentProjectPath: null as string | null,
+  });
   const [error, setError] = useState<string | null>(null);
 
   const loadProjects = useCallback(async (deepRefresh = false) => {
     try {
-      setLoading(true);
+      if (deepRefresh) {
+        setRefreshing(true);
+        setRefreshProgress({ completed: 0, total: 0, currentProjectPath: null });
+      } else {
+        setLoading(true);
+      }
       setError(null);
       const store = await getStore();
       const stored = (await store.get<ProjectInfo[]>(STORE_KEYS.PROJECTS)) ?? [];
@@ -84,25 +101,44 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
         })
       );
 
-      const updated = await Promise.all(
-        withValidEngines.map(async (p) => {
-          try {
-            const freshMaps = await invoke<string[]>('scan_project_maps', {
-              projectPath: p.projectPath,
-            });
-            const currentMaps = p.maps ?? [];
-            const mapsChanged =
-              freshMaps.length !== currentMaps.length ||
-              freshMaps.some((m, i) => m !== currentMaps[i]);
-            if (mapsChanged) {
-              return { ...p, maps: freshMaps };
-            }
-          } catch {
-            // keep existing maps on scan failure
+      // Publish engine-corrected projects immediately; map scan updates arrive incrementally.
+      setProjects(withValidEngines);
+      setRefreshProgress({
+        completed: 0,
+        total: withValidEngines.length,
+        currentProjectPath: withValidEngines[0]?.projectPath ?? null,
+      });
+
+      const updated = [...withValidEngines];
+      for (let i = 0; i < withValidEngines.length; i++) {
+        const p = withValidEngines[i];
+        setRefreshProgress({
+          completed: i,
+          total: withValidEngines.length,
+          currentProjectPath: p.projectPath,
+        });
+        try {
+          const freshMaps = await invoke<string[]>('scan_project_maps', {
+            projectPath: p.projectPath,
+          });
+          const currentMaps = p.maps ?? [];
+          const mapsChanged =
+            freshMaps.length !== currentMaps.length ||
+            freshMaps.some((m, idx) => m !== currentMaps[idx]);
+          if (mapsChanged) {
+            updated[i] = { ...p, maps: freshMaps };
+            setProjects([...updated]);
           }
-          return p;
-        })
-      );
+        } catch {
+          // keep existing maps on scan failure
+        }
+        setRefreshProgress({
+          completed: i + 1,
+          total: withValidEngines.length,
+          currentProjectPath:
+            i + 1 < withValidEngines.length ? withValidEngines[i + 1].projectPath : null,
+        });
+      }
 
       const anyMapsChanged = updated.some((p, i) => p.maps !== withValidEngines[i].maps);
       const anyEngineChanged = withValidEngines.some(
@@ -118,9 +154,16 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
       setProjects(updated);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load projects');
-      setProjects([]);
+      if (!deepRefresh) {
+        setProjects([]);
+      }
     } finally {
-      setLoading(false);
+      if (deepRefresh) {
+        setRefreshing(false);
+        setRefreshProgress((prev) => ({ ...prev, currentProjectPath: null }));
+      } else {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -170,6 +213,8 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
       value={{
         projects,
         loading,
+        refreshing,
+        refreshProgress,
         error,
         addProject,
         removeProject,

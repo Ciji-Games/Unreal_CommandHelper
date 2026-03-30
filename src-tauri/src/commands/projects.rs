@@ -2,6 +2,7 @@
 //! Step 6 & 7 implementation
 
 use std::path::Path;
+use tauri::async_runtime::spawn_blocking;
 use walkdir::WalkDir;
 
 use crate::commands::registry;
@@ -16,7 +17,13 @@ struct UProjectJson {
 /// Analyse a .uproject file and return ProjectInfo.
 /// Mirrors Form1.AnalyseUprojectFile from UECommandHelper.
 #[tauri::command]
-pub fn analyse_uproject(path: String) -> Result<ProjectInfo, String> {
+pub async fn analyse_uproject(path: String) -> Result<ProjectInfo, String> {
+    spawn_blocking(move || analyse_uproject_impl(path))
+        .await
+        .map_err(|e| format!("Project scan task failed: {}", e))?
+}
+
+fn analyse_uproject_impl(path: String) -> Result<ProjectInfo, String> {
     let uproj_path = Path::new(&path);
     if !uproj_path.exists() || uproj_path.extension().map_or(true, |e| e != "uproject") {
         return Err("Invalid or missing .uproject file".to_string());
@@ -49,7 +56,7 @@ pub fn analyse_uproject(path: String) -> Result<ProjectInfo, String> {
 
     // Match engine path from registry (project may have "5.7", engine "5.7.1")
     // Require version boundary to avoid "4" matching "41.0.0"
-    let engine_install_path = registry::get_installed_engine_paths()
+    let engine_install_path = registry::discover_installed_engine_paths()
         .ok()
         .unwrap_or_default()
         .into_iter()
@@ -103,11 +110,14 @@ pub fn get_project_thumbnail_path(project_path: String) -> Result<Option<String>
 
 /// Filter a list of paths to only those that exist. Returns paths that exist.
 #[tauri::command]
-pub fn filter_existing_paths(paths: Vec<String>) -> Result<Vec<String>, String> {
-    Ok(paths
-        .into_iter()
-        .filter(|p| Path::new(p).exists())
-        .collect())
+pub async fn filter_existing_paths(paths: Vec<String>) -> Result<Vec<String>, String> {
+    spawn_blocking(move || filter_existing_paths_impl(paths))
+        .await
+        .map_err(|e| format!("Path validation task failed: {}", e))?
+}
+
+fn filter_existing_paths_impl(paths: Vec<String>) -> Result<Vec<String>, String> {
+    Ok(paths.into_iter().filter(|p| Path::new(p).exists()).collect())
 }
 
 fn scan_maps_for_project_dir(project_dir: &Path) -> Vec<String> {
@@ -130,7 +140,13 @@ fn scan_maps_for_project_dir(project_dir: &Path) -> Vec<String> {
 /// Scan Content/ for *.umap files and return map paths in /Game/... format.
 /// Used to refresh maps when project still exists (new or deleted maps).
 #[tauri::command]
-pub fn scan_project_maps(project_path: String) -> Result<Vec<String>, String> {
+pub async fn scan_project_maps(project_path: String) -> Result<Vec<String>, String> {
+    spawn_blocking(move || scan_project_maps_impl(project_path))
+        .await
+        .map_err(|e| format!("Map scan task failed: {}", e))?
+}
+
+fn scan_project_maps_impl(project_path: String) -> Result<Vec<String>, String> {
     let path = Path::new(&project_path);
     if !path.exists() || path.extension().map_or(true, |e| e != "uproject") {
         return Err("Invalid or missing .uproject file".to_string());

@@ -8,6 +8,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { useSettings } from '../hooks/useSettings';
 import { useEngines } from '../hooks/useEngines';
 import { useProjects } from '../hooks/useProjects';
+import useIde from '../hooks/useIde';
 import { Select } from './Select';
 import type { CustomEngineEntry, IdeCandidate } from '../types';
 import { getShortEngineVersion, getEngineLabel } from '../utils/project';
@@ -28,46 +29,28 @@ export function SettingsPanel({ open: isOpen, onClose }: SettingsPanelProps) {
   const [addEngineName, setAddEngineName] = useState('');
   const [addEngineError, setAddEngineError] = useState('');
   const [editingEngineId, setEditingEngineId] = useState<string | null>(null);
-  const [ideCandidates, setIdeCandidates] = useState<IdeCandidate[]>([]);
-  const [ideLoading, setIdeLoading] = useState(false);
+  const { candidates: ideCandidates, loading: ideLoading, refresh: refreshIdeCandidates } = useIde();
 
   useEffect(() => {
-    let cancelled = false;
-    const loadIdeCandidates = async () => {
-      setIdeLoading(true);
-      try {
-        const [candidates, defaultIdeId] = await invoke<[IdeCandidate[], string | null]>(
-          'list_installed_ides'
-        );
-        if (cancelled) return;
-        setIdeCandidates(candidates);
-        const hasPreferred = !!settings.preferredIdeId &&
-          candidates.some((c) => c.id === settings.preferredIdeId);
-        if (!hasPreferred) {
-          const fallbackId = defaultIdeId ?? candidates[0]?.id ?? '';
-          if (fallbackId && fallbackId !== settings.preferredIdeId) {
-            await setSetting('preferredIdeId', fallbackId);
-          }
-        }
-      } catch (e) {
-        if (!cancelled) {
-          console.error('Failed to load installed IDEs:', e);
-          setIdeCandidates([]);
-        }
-      } finally {
-        if (!cancelled) setIdeLoading(false);
-      }
-    };
     if (isOpen) {
-      loadIdeCandidates();
+      void refreshIdeCandidates();
     }
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, settings.preferredIdeId, setSetting]);
+  }, [isOpen, refreshIdeCandidates]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const hasPreferred =
+      !!settings.preferredIdeId && ideCandidates.some((c: IdeCandidate) => c.id === settings.preferredIdeId);
+    if (!hasPreferred) {
+      const fallbackId = ideCandidates[0]?.id ?? '';
+      if (fallbackId && fallbackId !== settings.preferredIdeId) {
+        void setSetting('preferredIdeId', fallbackId);
+      }
+    }
+  }, [isOpen, ideCandidates, settings.preferredIdeId, setSetting]);
 
   const ideOptions = useMemo(
-    () => ideCandidates.map((ide) => ({ value: ide.id, label: ide.label })),
+    () => ideCandidates.map((ide: IdeCandidate) => ({ value: ide.id, label: ide.label })),
     [ideCandidates]
   );
 
